@@ -2,148 +2,203 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MSW Extractor - 管理端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSW Extractor - 管理控制台</title>
+    <link rel="stylesheet" href="css/style.css">
     <style>
-        :root {
-            --bg-color: #1a1a24;
-            --card-bg: #111117;
-            --accent-blue: #4066b3;
-            --text-color: #e0e0e0;
+        /* 額外的頁面特定樣式 */
+        .status-bar {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
         }
-        body { background-color: var(--bg-color); color: var(--text-color); font-family: sans-serif; padding: 20px; }
-        .config-section { background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        input { background: #2a2a3a; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; margin-right: 10px; }
-        button { background: var(--accent-blue); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-        button:hover { opacity: 0.9; }
-        #equip_list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
-        .item-card { background: var(--card-bg); border: 1px solid #2d2d3d; border-radius: 10px; overflow: hidden; transition: transform 0.2s; }
-        .item-card:hover { transform: translateY(-5px); border-color: var(--accent-blue); }
-        .thumb-bg { background: #0c0c10; height: 100px; display: flex; align-items: center; justify-content: center; }
-        .thumb-bg img { max-width: 80px; max-height: 80px; }
-        .info { padding: 10px; font-size: 12px; }
-        .badge { background: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
-        .status { margin-top: 10px; color: #888; font-size: 13px; }
+        .status-error { background: rgba(231, 76, 60, 0.2); color: #ff4757; display: block; }
+        .status-success { background: rgba(46, 204, 113, 0.2); color: #2ecc71; display: block; }
     </style>
 </head>
 <body>
 
-    <h2>🛠️ MSW 資源提取器</h2>
+<div class="container">
+    <header style="margin-bottom: 30px;">
+        <a href="index.html" style="color: var(--accent-blue); text-decoration: none;">← 返回控制中心</a>
+        <h1>👕 裝備提取管理器</h1>
+    </header>
 
-    <div class="panel">
-    <h3>🔑 憑證管理</h3>
-    <div class="flex">
-        <input type="text" id="msw_token" placeholder="Access Token">
-        <input type="text" id="msw_user_id" placeholder="User ID">
-    </div>
-    <div class="mt-20">
-        <button onclick="saveCredentials()">💾 手動儲存</button>
-        <button onclick="document.getElementById('import_file').click()" style="background: var(--success-color); color: black;">
-            📥 匯入 Token JSON
-        </button>
-        <input type="file" id="import_file" style="display:none" accept=".json" onchange="importTokenJson(this)">
+    <div class="grid-layout" style="display: grid; grid-template-columns: 1fr 350px; gap: 20px;">
+        
+        <main>
+            <div class="panel">
+                <h3>🔍 玩家搜尋</h3>
+                <div class="flex">
+                    <input type="text" id="target_ppsn" placeholder="請輸入玩家 PPSN (例如: 203721000...)" style="flex-grow: 1;">
+                    <button onclick="fetchPlayerEquips()">開始掃描</button>
+                </div>
+                <div id="fetch-status" class="status-bar"></div>
+            </div>
+
+            <div class="panel">
+                <h3>📦 穿戴中的裝備</h3>
+                <div id="equip_list" class="equip-grid">
+                    <p style="color: var(--text-secondary); text-align: center; grid-column: 1/-1; padding: 40px;">
+                        請在上方輸入 PPSN 並點擊掃描來獲取資料
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <aside>
+            <div class="panel">
+                <h3>🔑 憑證設定</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label style="font-size: 12px; color: var(--text-secondary);">Access Token</label>
+                    <input type="password" id="msw_token" placeholder="輸入 token">
+                    
+                    <label style="font-size: 12px; color: var(--text-secondary);">User ID</label>
+                    <input type="text" id="msw_user_id" placeholder="輸入 user_id">
+                    
+                    <div class="mt-20" style="display: flex; flex-direction: column; gap: 10px;">
+                        <button onclick="handleManualSave()">💾 手動儲存憑證</button>
+                        
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); margin: 5px 0;">或使用自動化助手</div>
+                        
+                        <button onclick="document.getElementById('import_file').click()" style="background: var(--online-green); color: black;">
+                            📥 匯入 Token JSON
+                        </button>
+                        <input type="file" id="import_file" style="display:none" accept=".json" onchange="importTokenJson(this)">
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>👥 已儲存帳號</h3>
+                <div id="saved-accounts-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    </div>
+            </div>
+        </aside>
     </div>
 </div>
 
-    <div class="config-section">
-        <input type="text" id="target_ppsn" placeholder="輸入玩家 PPSN">
-        <button onclick="startEquipFetch()">搜尋穿戴中裝備</button>
-        <div id="status" class="status">等待輸入...</div>
-    </div>
+<script src="js/account_manager.js"></script>
+<script src="js/nexon_api.js"></script>
 
-    <div id="equip_list"></div>
+<script>
+    // 初始化頁面
+    window.onload = () => {
+        const current = AccountManager.getCurrentAccount();
+        if (current) {
+            document.getElementById('msw_token').value = current.token;
+            document.getElementById('msw_user_id').value = current.userId;
+        }
+        renderSavedAccounts();
+    };
 
-    <script>
-        const ALLOWED_TYPES = {
-            "HAIR": "髮型", "HAT": "帽子", "CAPE": "披風",
-            "TOP": "上衣", "GLOVE": "手套", "OVERALL": "套裝",
-            "BOTTOM": "下裝", "SHOES": "鞋子"
+    // 處理手動儲存
+    function handleManualSave() {
+        const token = document.getElementById('msw_token').value.trim();
+        const userId = document.getElementById('msw_user_id').value.trim();
+        if (AccountManager.saveAccount(userId, token, "手動設定")) {
+            alert("憑證已儲存！");
+            location.reload();
+        }
+    }
+
+    // 匯入由 Python 腳本產生的 JSON
+    function importTokenJson(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.token && data.user_id) {
+                    AccountManager.saveAccount(data.user_id, data.token, "自動助手匯入");
+                    alert("✅ 憑證自動匯入成功！");
+                    location.reload();
+                }
+            } catch (err) {
+                alert("❌ JSON 格式解析失敗");
+            }
         };
+        reader.readAsText(file);
+    }
 
-        // 初始化：從本地讀取憑證
-        window.onload = () => {
-            document.getElementById('msw_token').value = localStorage.getItem('msw_token') || '';
-            document.getElementById('msw_user_id').value = localStorage.getItem('msw_user_id') || '';
-        };
+    // 渲染帳號列表
+    function renderSavedAccounts() {
+        const accounts = AccountManager.getAccounts();
+        const list = document.getElementById('saved-accounts-list');
+        const currentId = localStorage.getItem('msw_current_user_id');
 
-        function saveCredentials() {
-            localStorage.setItem('msw_token', document.getElementById('msw_token').value.trim());
-            localStorage.setItem('msw_user_id', document.getElementById('msw_user_id').value.trim());
-            alert("憑證已儲存");
+        if (accounts.length === 0) {
+            list.innerHTML = '<p style="font-size:12px; color:#666;">尚未儲存任何帳號</p>';
+            return;
         }
 
-        async function startEquipFetch() {
-            const ppsn = document.getElementById('target_ppsn').value.trim();
-            const token = document.getElementById('msw_token').value.trim();
-            const userId = document.getElementById('msw_user_id').value.trim();
-            const status = document.getElementById('status');
-            const grid = document.getElementById('equip_list');
+        list.innerHTML = accounts.map(acc => `
+            <div style="padding: 10px; background: ${acc.userId === currentId ? 'var(--bg-input)' : 'transparent'}; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" 
+                 onclick="AccountManager.setCurrentAccount('${acc.userId}'); location.reload();">
+                <div style="font-size: 13px; font-weight: bold;">${acc.nickname}</div>
+                <div style="font-size: 10px; color: #666;">${acc.userId.substring(0, 15)}...</div>
+            </div>
+        `).join('');
+    }
 
-            if (!ppsn || !token || !userId) return alert("請完整填寫 PPSN、Token 與 User ID");
+    // 執行掃描裝備
+    async function fetchPlayerEquips() {
+        const ppsn = document.getElementById('target_ppsn').value.trim();
+        const statusBox = document.getElementById('fetch-status');
+        const grid = document.getElementById('equip_list');
 
-            status.innerHTML = "⏳ 正在載入資料...";
+        if (!ppsn) return alert("請輸入目標玩家的 PPSN");
+
+        statusBox.className = "status-bar";
+        statusBox.innerText = "⏳ 正在與伺服器通訊...";
+        statusBox.classList.add("status-success");
+
+        try {
+            const items = await NexonAPI.getEquipList(ppsn);
             grid.innerHTML = "";
 
-            // 對應 Godot 中的載入穿戴裝備 URL
-            const apiUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-            
-            try {
-                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, {
-                    headers: {
-                        "mod-accesstoken": token,
-                        "mod-user-id": userId, // 補上這個以修復 401
-                        "x-mod-client": "727d112f1370415e85686530ec048fb7",
-                        "x-mod-runtime-version": "1.25.6.672",
-                        "x-mod-client-platform": "win",
-                        "mod-caller": "mod",
-                        "Accept": "application/json"
-                    }
-                });
+            if (items.length === 0) {
+                statusBox.className = "status-bar status-error";
+                statusBox.innerText = "ℹ️ 該玩家目前沒有穿戴可提取的造型裝備";
+                return;
+            }
 
-                if (res.status === 401) {
-                    status.innerHTML = "❌ 401 Unauthorized: Token 已失效或 User ID 錯誤";
-                    return;
-                }
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="thumb-container">
+                        <img src="${item.itemThumbnailUrl}" alt="icon">
+                    </div>
+                    <div class="item-info">
+                        <span class="item-type-tag">${item.avatarType}</span>
+                        <div class="ruid-text">${item.ruid}</div>
+                        <button onclick="navigator.clipboard.writeText('${item.ruid}'); alert('已複製 RUID')" 
+                                style="width: 100%; font-size: 10px; padding: 5px; margin-top: 10px;">
+                            複製 RUID
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
 
-                const json = await res.json();
-                const items = json.data?.items || [];
+            statusBox.className = "status-bar status-success";
+            statusBox.innerText = `✅ 成功載入 ${items.length} 件裝備`;
 
-                // 過濾裝備邏輯 (Whitelist)
-                const filtered = items.filter(item => ALLOWED_TYPES.hasOwnProperty(item.avatarType));
-
-                if (filtered.length === 0) {
-                    status.innerHTML = "ℹ️ 該玩家目前沒有穿戴指定的造型配件";
-                    return;
-                }
-
-                filtered.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'item-card';
-                    card.innerHTML = `
-                        <div class="thumb-bg">
-                            <img src="${item.itemThumbnailUrl}" alt="icon">
-                        </div>
-                        <div class="info">
-                            <span class="badge">${ALLOWED_TYPES[item.avatarType]}</span>
-                            <div style="margin-top:5px; color:#aaa; font-size:10px;">ID: ${item.itemId}</div>
-                            <div style="font-size:10px; color:#666; overflow:hidden;">RUID: ${item.ruid}</div>
-                            <button onclick="copyRuid('${item.ruid}')" style="margin-top:8px; width:100%; font-size:10px; padding:4px;">複製 RUID</button>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
-
-                status.innerHTML = `✅ 成功獲取玩家 ${ppsn} 的 ${filtered.length} 件裝備`;
-
-            } catch (err) {
-                status.innerHTML = "❌ 請求失敗，請檢查網路或 CORS 代理";
-                console.error(err);
+        } catch (err) {
+            statusBox.className = "status-bar status-error";
+            if (err.message === "UNAUTHORIZED") {
+                statusBox.innerText = "❌ 憑證無效 (401)，請重新匯入 Token";
+            } else {
+                statusBox.innerText = "❌ 請求失敗: " + err.message;
             }
         }
+    }
+</script>
 
-        function copyRuid(ruid) {
-            navigator.clipboard.writeText(ruid);
-            alert("已複製 RUID: " + ruid);
-        }
-    </script>
 </body>
 </html>

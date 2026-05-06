@@ -1,0 +1,169 @@
+/* --- 全域變數設定 --- */
+:root {
+    --bg-darker: #0c0c12;
+    --bg-main: #16161e;
+    --bg-card: #1e1e28;
+    --bg-input: #252532;
+    --accent-blue: #4a90e2;
+    --accent-glow: rgba(74, 144, 226, 0.3);
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0b8;
+    --online-green: #2ecc71;
+    --offline-gray: #7f8c8d;
+    --border-color: #303042;
+    --danger: #ff4757;
+}
+
+/* --- 基礎樣式 --- */
+body {
+    background-color: var(--bg-darker);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* --- 佈局組件 --- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* --- 表單與輸入框 --- */
+input[type="text"], input[type="password"] {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+    outline: none;
+}
+
+input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+button {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* --- 裝備卡片網格 (Equip Grid) --- */
+.equip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.item-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.item-card:hover {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.thumb-container {
+    background: #000;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.thumb-container img {
+    max-width: 85%;
+    max-height: 85%;
+    image-rendering: pixelated; /* 保持楓之谷像素感 */
+}
+
+.item-info {
+    padding: 12px;
+}
+
+.item-type-tag {
+    display: inline-block;
+    background: rgba(74, 144, 226, 0.2);
+    color: var(--accent-blue);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.item-name {
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ruid-text {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+/* --- 好友卡片特有樣式 (Status Dot) --- */
+.avatar-wrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+}
+
+.status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+}
+
+.status-online { background-color: var(--online-green); }
+.status-offline { background-color: var(--offline-gray); }
+
+/* --- 通用工具類 --- */
+.text-center { text-align: center; }
+.mt-20 { margin-top: 20px; }
+.flex { display: flex; align-items: center; gap: 10px; }

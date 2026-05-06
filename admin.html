@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>MSW Extractor - 管理端</title>
+    <style>
+        :root {
+            --bg-color: #1a1a24;
+            --card-bg: #111117;
+            --accent-blue: #4066b3;
+            --text-color: #e0e0e0;
+        }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: sans-serif; padding: 20px; }
+        .config-section { background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        input { background: #2a2a3a; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; margin-right: 10px; }
+        button { background: var(--accent-blue); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        #equip_list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+        .item-card { background: var(--card-bg); border: 1px solid #2d2d3d; border-radius: 10px; overflow: hidden; transition: transform 0.2s; }
+        .item-card:hover { transform: translateY(-5px); border-color: var(--accent-blue); }
+        .thumb-bg { background: #0c0c10; height: 100px; display: flex; align-items: center; justify-content: center; }
+        .thumb-bg img { max-width: 80px; max-height: 80px; }
+        .info { padding: 10px; font-size: 12px; }
+        .badge { background: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .status { margin-top: 10px; color: #888; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <h2>🛠️ MSW 資源提取器</h2>
+
+    <div class="config-section">
+        <input type="text" id="msw_token" placeholder="Access Token (從註冊表抓取)">
+        <input type="text" id="msw_user_id" placeholder="User ID (從註冊表抓取)">
+        <button onclick="saveCredentials()">儲存憑證</button>
+    </div>
+
+    <div class="config-section">
+        <input type="text" id="target_ppsn" placeholder="輸入玩家 PPSN">
+        <button onclick="startEquipFetch()">搜尋穿戴中裝備</button>
+        <div id="status" class="status">等待輸入...</div>
+    </div>
+
+    <div id="equip_list"></div>
+
+    <script>
+        const ALLOWED_TYPES = {
+            "HAIR": "髮型", "HAT": "帽子", "CAPE": "披風",
+            "TOP": "上衣", "GLOVE": "手套", "OVERALL": "套裝",
+            "BOTTOM": "下裝", "SHOES": "鞋子"
+        };
+
+        // 初始化：從本地讀取憑證
+        window.onload = () => {
+            document.getElementById('msw_token').value = localStorage.getItem('msw_token') || '';
+            document.getElementById('msw_user_id').value = localStorage.getItem('msw_user_id') || '';
+        };
+
+        function saveCredentials() {
+            localStorage.setItem('msw_token', document.getElementById('msw_token').value.trim());
+            localStorage.setItem('msw_user_id', document.getElementById('msw_user_id').value.trim());
+            alert("憑證已儲存");
+        }
+
+        async function startEquipFetch() {
+            const ppsn = document.getElementById('target_ppsn').value.trim();
+            const token = document.getElementById('msw_token').value.trim();
+            const userId = document.getElementById('msw_user_id').value.trim();
+            const status = document.getElementById('status');
+            const grid = document.getElementById('equip_list');
+
+            if (!ppsn || !token || !userId) return alert("請完整填寫 PPSN、Token 與 User ID");
+
+            status.innerHTML = "⏳ 正在載入資料...";
+            grid.innerHTML = "";
+
+            // 對應 Godot 中的載入穿戴裝備 URL
+            const apiUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+            
+            try {
+                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, {
+                    headers: {
+                        "mod-accesstoken": token,
+                        "mod-user-id": userId, // 補上這個以修復 401
+                        "x-mod-client": "727d112f1370415e85686530ec048fb7",
+                        "x-mod-runtime-version": "1.25.6.672",
+                        "x-mod-client-platform": "win",
+                        "mod-caller": "mod",
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (res.status === 401) {
+                    status.innerHTML = "❌ 401 Unauthorized: Token 已失效或 User ID 錯誤";
+                    return;
+                }
+
+                const json = await res.json();
+                const items = json.data?.items || [];
+
+                // 過濾裝備邏輯 (Whitelist)
+                const filtered = items.filter(item => ALLOWED_TYPES.hasOwnProperty(item.avatarType));
+
+                if (filtered.length === 0) {
+                    status.innerHTML = "ℹ️ 該玩家目前沒有穿戴指定的造型配件";
+                    return;
+                }
+
+                filtered.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="thumb-bg">
+                            <img src="${item.itemThumbnailUrl}" alt="icon">
+                        </div>
+                        <div class="info">
+                            <span class="badge">${ALLOWED_TYPES[item.avatarType]}</span>
+                            <div style="margin-top:5px; color:#aaa; font-size:10px;">ID: ${item.itemId}</div>
+                            <div style="font-size:10px; color:#666; overflow:hidden;">RUID: ${item.ruid}</div>
+                            <button onclick="copyRuid('${item.ruid}')" style="margin-top:8px; width:100%; font-size:10px; padding:4px;">複製 RUID</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                status.innerHTML = `✅ 成功獲取玩家 ${ppsn} 的 ${filtered.length} 件裝備`;
+
+            } catch (err) {
+                status.innerHTML = "❌ 請求失敗，請檢查網路或 CORS 代理";
+                console.error(err);
+            }
+        }
+
+        function copyRuid(ruid) {
+            navigator.clipboard.writeText(ruid);
+            alert("已複製 RUID: " + ruid);
+        }
+    </script>
+</body>
+</html>

@@ -95,7 +95,7 @@
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
                 // 自動搜尋：這就是你在 Godot 中看到的邏輯，透過商品名稱反查真實資訊
-                const realData = await NexonAPI.getRealProductDetail(item.itemName);
+                const realData = await NexonAPI.getRealProductDetail(item.itemId);
                 
                 const displayData = {
                     name: item.itemName,

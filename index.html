@@ -94,7 +94,7 @@
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
-                // 在 index.html 的掃描循環中
+            // 在 index.html 的掃描循環中
             const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
             
             const displayData = {
@@ -106,15 +106,6 @@
                 authorDisplay: realData ? realData.authorInfo : "未上架", // 顯示 暱稱#ID
                 sellerPpsn: realData ? realData.sellerPpsn : "未上架"    // 同步 GitHub 仍建議用 PPSN
             };
-            
-            // ... 產出卡片的 HTML ...
-            card.innerHTML = `
-                <div class="info-row">
-                    <div class="info-label">👤 作者</div>
-                    <div class="info-value">${displayData.authorDisplay}</div> 
-                    <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
-                </div>
-                `;
 
             const card = document.createElement('div');
             card.className = 'item-card';
@@ -131,8 +122,8 @@
                 
                 <div class="info-row">
                     <div class="info-label">👤 作者</div>
-                    <div class="info-value">${displayData.sellerPpsn}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
+                    <div class="info-value">${displayData.authorDisplay}</div> 
+                    <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
                 </div>
                 
                 <div class="info-row">

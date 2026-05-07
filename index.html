@@ -99,11 +99,11 @@
                 
                 const displayData = {
                     name: item.itemName,
-                    price: realData ? realData.price : "未知",
+                    price: realData ? realData.price : "???WC",
                     priceUnit: realData ? "wc" : "",
-                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                    itemId: realData ? realData.itemId : (item.itemId || "未知"),
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    sellerPpsn: realData ? realData.sellerPpsn : "未上架"
+                    sellerPpsn: realData ? realData.sellerPpsn : "未知"
                 };
 
                 const card = document.createElement('div');
@@ -114,7 +114,7 @@
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
                     
                     <div class="info-row">
-                        <div class="info-label">👤 作者 PPSN</div>
+                        <div class="info-label">👤 作者</div>
                         <div class="info-value">${displayData.sellerPpsn}</div>
                         <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
                     </div>
@@ -125,8 +125,9 @@
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
                     <div class="info-row">
-							<span class="label">🖼️ 圖片網址</span>
-							<a href="${item.itemThumbnailUrl}" target="_blank" class="url-link">${item.itemThumbnailUrl}</a>
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 

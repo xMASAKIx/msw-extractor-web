@@ -20,7 +20,6 @@
         .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid #27272a; overflow: hidden; }
         .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
 
-        /* 價格樣式：對應 Godot Color(0.4, 0.7, 0.5) */
         .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
         .price-unit { font-size: 14px; color: #809980; }
 
@@ -72,41 +71,72 @@
                 "mod-user-id": currentAccount.userId,
                 "x-mod-client": "727d112f1370415e85686530ec048fb7",
                 "Accept": "application/json",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache"
             };
         },
 
         async proxyFetch(url) {
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-            const response = await fetch(proxyUrl, { headers: this.getHeaders() });
-            if (response.status === 401) throw new Error("憑證已失效，請重新儲存");
-            return await response.json();
+            // 每次請求都生成全新的隨機參數，強制代理伺服器重新抓取資料
+            const cacheBuster = `&nocache=${Date.now()}_${Math.random().toString(36).substring(7)}`;
+            const finalUrl = url + cacheBuster;
+            
+            // 使用 allorigins /get 並開啟 disableCache 參數
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(finalUrl)}&disableCache=true`;
+
+            try {
+                const response = await fetch(proxyUrl, { 
+                    headers: this.getHeaders(),
+                    cache: 'no-store' 
+                });
+                const res = await response.json();
+                
+                // allorigins 的資料在 contents 中，且為字串格式
+                const data = typeof res.contents === 'string' ? JSON.parse(res.contents) : res.contents;
+                
+                if (data?.code === 401 || data?.code === 403) throw new Error("憑證失效，請更新憑證");
+                return data;
+            } catch (e) {
+                console.error("代理請求失敗:", e);
+                return null;
+            }
         },
 
         async getPpsnByCode(profileCode) {
             const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
             const json = await this.proxyFetch(url);
-            if (json.data && json.data.ppsn) return json.data.ppsn;
-            throw new Error("找不到該 ID 對應的玩家");
+            if (json?.data?.ppsn) return json.data.ppsn;
+            throw new Error("找不到該玩家，請檢查 5 碼 ID");
         },
 
         async getRealProductDetail(itemName) {
             const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
             try {
                 const res = await this.proxyFetch(searchUrl);
-                const items = res.data?.items || res.list || [];
-                return items.length > 0 ? items[0] : null;
-            } catch (e) { return null; }
+                // 根據 Log，資料可能在 res.data.items[0]
+                const items = res?.data?.items || res?.list || [];
+                if (items.length > 0) {
+                    const d = items[0];
+                    return {
+                        price: d.itemPrice ?? d.targetPrice ?? 0,
+                        sellerPpsn: d.sellerPpsn || "N/A",
+                        nickname: d.nickname || "未知",
+                        itemId: d.itemId || d.id
+                    };
+                }
+            } catch (e) { console.error("商城校對失敗", e); }
+            return null;
         },
 
         async getEquipList(input) {
-            let ppsn = input;
-            if (input.length === 5) ppsn = await this.getPpsnByCode(input);
+            let ppsn = input.trim();
+            if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
 
             const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
             const json = await this.proxyFetch(url);
             const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-            return (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+            return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
         }
     };
 
@@ -125,78 +155,71 @@
     }
 
     document.getElementById('btn_search').onclick = async function() {
-    const input = document.getElementById('target_input').value.trim();
-    const status = document.getElementById('status-bar');
-    const grid = document.getElementById('equip_list');
+        const input = document.getElementById('target_input').value.trim();
+        const status = document.getElementById('status-bar');
+        const grid = document.getElementById('equip_list');
 
-    if (!input) return;
-    status.style.display = "block";
-    status.innerText = "⏳ 正在抓取穿戴清單...";
-    grid.innerHTML = "";
+        if (!input) return;
+        status.style.display = "block";
+        status.innerText = "⏳ 正在抓取穿戴清單...";
+        grid.innerHTML = "";
 
-    try {
-        const rawItems = await NexonAPI.getEquipList(input);
-        
-        for (let item of rawItems) {
-            status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
+        try {
+            const rawItems = await NexonAPI.getEquipList(input);
             
-            const realData = await NexonAPI.getRealProductDetail(item.itemName);
-            
-            // 處理價格邏輯
-            let rawPrice = realData ? (realData.targetPrice || realData.itemPrice) : -1;
-            let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
-            let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
+            for (let item of rawItems) {
+                status.innerText = `⏳ 正在即時抓取商城資料: ${item.itemName}...`;
+                
+                const realData = await NexonAPI.getRealProductDetail(item.itemName);
+                
+                // 優先使用真實抓到的資料，抓不到才用原本的
+                const displayData = {
+                    name: item.itemName,
+                    price: realData ? realData.price : "未知",
+                    priceUnit: realData ? "wc" : "",
+                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                    img: item.itemImageUrl || item.itemThumbnailUrl,
+                    author: realData ? realData.nickname : "未知",
+                    sellerPpsn: realData ? realData.sellerPpsn : "未上架"
+                };
 
-            // --- 新增：取得賣家 PPSN ---
-            let sellerPpsn = realData ? (realData.sellerPpsn || "未知") : "未上架";
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="thumb-box"><img src="${displayData.img}"></div>                    
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
+                    <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
+                    
+                    <div class="info-row">
+                        <div class="info-label">👤 作者 PPSN</div>
+                        <div class="info-value" title="${displayData.sellerPpsn}">${displayData.sellerPpsn}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
+                    </div>
 
-            const displayData = {
-                name: item.itemName,
-                price: priceDisplay,
-                priceUnit: priceUnit,
-                itemId: realData ? (realData.itemId || realData.id) : (item.itemId || "未上架"),
-                img: item.itemImageUrl || item.itemThumbnailUrl,
-                author: realData ? (realData.nickname || realData.profileName) : "未知",
-                sellerPpsn: sellerPpsn // <-- 確保這行有加進去
-            };
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
+                `;
 
-            const card = document.createElement('div');
-            card.className = 'item-card';
-            card.innerHTML = `
-                <div class="thumb-box"><img src="${displayData.img}"></div>                    
-                <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
-                <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
-                <div class="info-row">
-                    <div class="info-label">👤 作者</div>
-                    <div class="info-value" title="${displayData.sellerPpsn}">${displayData.sellerPpsn}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">🆔 商品 ID</div>
-                    <div class="info-value">${displayData.itemId}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">🖼️ 縮圖網址</div>
-                    <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                </div>
-                <button class="btn-sync">🚀 同步至 GitHub</button>
-            `;
-
-            // 這裡的 displayData 已經包含 sellerPpsn，所以 sync 函數會接收到它
-            card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
-            grid.appendChild(card);
+                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+                grid.appendChild(card);
+            }
+            status.innerText = `✅ 掃描完成，已繞過快取取得最新資料`;
+        } catch (err) {
+            status.innerText = "❌ 錯誤: " + err.message;
         }
-        status.innerText = `✅ 掃描完成，已校對商城資料`;
-    } catch (err) {
-        status.innerText = "❌ 錯誤: " + err.message;
-    }
-};
+    };
 
     async function sync(btn, data) {
-        if (data.itemId === "未上架") return alert("此裝備未在商城上架，無法同步 ID");
+        if (data.itemId === "未上架") return alert("此裝備未上架，無法同步");
         btn.disabled = true;
         btn.innerText = "⏳ 同步中...";
         try {
@@ -211,6 +234,7 @@
                 "keyword": data.name,
                 "wc": data.price === "未知" ? "未知" : data.price + "wc",
                 "id": String(data.itemId),
+                "author_ppsn": data.sellerPpsn,
                 "img": data.img
             });
 
@@ -218,7 +242,7 @@
                 method: "PUT",
                 headers: { "Authorization": `token ${GITHUB_CONFIG.token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    message: `Add: ${data.name}`,
+                    message: `Add: ${data.name} (Price: ${data.price})`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
                     sha: json.sha
                 })
@@ -226,7 +250,7 @@
             btn.innerText = "✅ 成功";
         } catch (err) {
             alert(err.message);
-            btn.innerText = "🚀 同步失敗";
+            btn.innerText = "🚀 失敗";
             btn.disabled = false;
         }
     }

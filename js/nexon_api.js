@@ -86,27 +86,26 @@ const NexonAPI = {
     async getEquipList(input) {
         let ppsn = input.trim();
         
-        // 如果輸入是 5 碼則先轉換
         if (ppsn.length === 5) {
             ppsn = await this.getPpsnByCode(ppsn);
         }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         
-        // 裝備過濾清單
-        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-        const rawItems = (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+        // --- 修正點：必須先執行 proxyFetch 並賦值給 json ---
+        const json = await this.proxyFetch(url); 
+        
+        if (!json || !json.data) return [];
 
-        if (rawItems.length === 0) return [];
+        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
+        const rawItems = (json.data.items || []).filter(item => whitelist.includes(item.avatarType));
 
         return rawItems.map(item => ({
             itemName: item.itemName,
-            // 穿戴清單提供的 itemId 有時是 RUID，先紀錄起來，後續由 getRealProductDetail 校對
             itemId: item.itemId || item.ruid || "N/A", 
             itemImageUrl: item.itemImageUrl || item.itemThumbnailUrl || ""
         }));
     }
-};
 
 // 掛載到全域讓 index.html 存取
 window.NexonAPI = NexonAPI;

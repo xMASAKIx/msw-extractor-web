@@ -94,17 +94,27 @@
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
-                // 自動搜尋：這就是你在 Godot 中看到的邏輯，透過商品名稱反查真實資訊
-                const realData = await NexonAPI.getRealProductDetail(item.itemId);
-                
-                const displayData = {
-                    name: item.itemName,
-                    price: realData ? realData.price : "???wc",
-                    priceUnit: realData ? "wc" : "",
-                    itemId: realData ? realData.itemId : (item.itemId || "未知"),
-                    img: item.itemImageUrl || item.itemThumbnailUrl,
-                    sellerPpsn: realData ? realData.sellerPpsn : "未知"
-                };
+                // 在 index.html 的掃描循環中
+            const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
+            
+            const displayData = {
+                name: item.itemName,
+                price: realData ? realData.price : "未知",
+                priceUnit: realData ? "wc" : "",
+                itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                img: item.itemImageUrl || item.itemThumbnailUrl,
+                authorDisplay: realData ? realData.authorInfo : "未上架", // 顯示 暱稱#ID
+                sellerPpsn: realData ? realData.sellerPpsn : "未上架"    // 同步 GitHub 仍建議用 PPSN
+            };
+            
+            // ... 產出卡片的 HTML ...
+            card.innerHTML = `
+                <div class="info-row">
+                    <div class="info-label">👤 作者</div>
+                    <div class="info-value">${displayData.authorDisplay}</div> 
+                    <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                </div>
+                `;
 
             const card = document.createElement('div');
             card.className = 'item-card';

@@ -1,15 +1,11 @@
 /**
- * MSW Nexon API 核心模組
- * 整合了穩定版網址與動態 Token 儲存邏輯
+ * MSW Nexon API 核心模組 (支援自動轉換 ID)
  */
 const NexonAPI = {
-    // 優先使用你的原始穩定版網址配置
+    // 取得當前存好的 Token
     getHeaders: () => {
-        // 從 AccountManager 取得當前存好的帳號資料
         const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
-        // 預設取第一組帳號，或依照你的需求調整
         const currentAccount = accounts[0] || { userId: '', token: '' };
-
         return {
             "mod-accesstoken": currentAccount.token,
             "mod-user-id": currentAccount.userId,
@@ -22,63 +18,54 @@ const NexonAPI = {
         };
     },
 
-    // 封裝 Fetch 邏輯（使用 corsproxy.io）
+    // 穩定的 Proxy 請求封裝
     async proxyFetch(url) {
-        // 使用你的原始穩定版 Proxy 格式
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
-        try {
-            const response = await fetch(proxyUrl, {
-                headers: this.getHeaders()
-            });
+        const response = await fetch(proxyUrl, { headers: this.getHeaders() });
 
-            if (response.status === 401) {
-                throw new Error("憑證已失效 (UNAUTHORIZED)，請更新 Token");
-            }
-            if (!response.ok) {
-                // 如果遇到 530 錯誤，通常是 Proxy 暫時性問題
-                throw new Error(`伺服器錯誤 (代碼: ${response.status})`);
-            }
-            return await response.json();
-        } catch (err) {
-            console.error("Fetch 失敗:", err);
-            throw err;
-        }
+        if (response.status === 401) throw new Error("憑證已失效");
+        if (response.status === 530) throw new Error("Proxy 暫時繁忙 (530)，請稍後再試");
+        if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
+
+        return await response.json();
     },
 
     /**
-     * 1. 獲取 PPSN (由 5 碼 ID 轉換)
+     * 關鍵新增：將 5 碼 ID 轉換為 PPSN
      */
     async getPpsnByCode(profileCode) {
+        // 使用 mverse-api 進行轉換
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
         const json = await this.proxyFetch(url);
         
         if (json.data && json.data.ppsn) {
-            return {
-                ppsn: json.data.ppsn,
-                profileName: json.data.profileName
-            };
+            console.log(`轉換成功: ${profileCode} -> ${json.data.ppsn}`);
+            return json.data.ppsn;
         } else {
-            throw new Error("找不到該玩家 ID");
+            throw new Error("找不到該 5 碼 ID 對應的玩家");
         }
     },
 
     /**
-     * 2. 獲取玩家穿戴裝備清單 (使用你提供的穩定網域)
+     * 獲取裝備清單 (會自動判斷輸入類型)
      */
-    async getEquipList(ppsn) {
-        // 使用你一開始提供的穩定版 Gateway 網址
-        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+    async getEquipList(input) {
+        let finalPpsn = input;
+
+        // 如果輸入的是 5 碼 (純數字或長度為 5)，先跑轉換
+        if (input.length === 5) {
+            finalPpsn = await this.getPpsnByCode(input);
+        }
+
+        // 使用你原本穩定的 Gateway 網址
+        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${finalPpsn}`;
         const json = await this.proxyFetch(url);
         
-        // 裝備類型白名單
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-        
-        // 確保資料結構正確並過濾
         const items = json.data?.items || [];
+        
         return items.filter(item => whitelist.includes(item.avatarType));
     }
 };
 
-// 匯出供頁面使用
 window.NexonAPI = NexonAPI;

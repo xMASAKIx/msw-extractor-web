@@ -17,22 +17,7 @@ const NexonAPI = {
         };
     },
 
-    async proxyFetch(url) {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, { headers: this.getHeaders() });
-        
-        // 處理 HTTP 401 認證錯誤
-        if (response.status === 401) throw new Error("憑證已失效，請重新更新 AccessToken");
-        
-        const json = await response.json();
-        
-        // 處理 Nexon API 內部的錯誤代碼 (例如代碼非 0)
-        if (json.code !== undefined && json.code !== 0) {
-            console.warn(`API 回傳異常代碼: ${json.code}`, json.message);
-        }
-        
-        return json;
-    },
+
 
     /**
      * 核心：從商城搜尋商品獲取真實價格與 ID

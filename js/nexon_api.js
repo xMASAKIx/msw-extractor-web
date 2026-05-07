@@ -1,6 +1,5 @@
 /**
- * MSW Nexon API 核心模組 (穩定圖片版)
- * 修復：確保縮圖網址遺失時，能自動抓取原始圖或商城圖
+ * MSW Nexon API 核心模組 - 完整版
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -25,43 +24,19 @@ const NexonAPI = {
         return await response.json();
     },
 
-    /**
-     * 邏輯 A：從 Godot 預購腳本提取的真實資料查詢
-     */
+    // 透過 ID 抓取商城精確資料 (包含縮圖網址)
     async getItemDetailById(itemId) {
         if (!itemId || itemId === "0") return null;
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${itemId}`;
         try {
             const res = await this.proxyFetch(url);
             if (res.code === 0 && res.data) {
-                const d = res.data;
                 return {
-                    price: d.itemPrice,
-                    name: d.itemName,
-                    // 這裡也做圖片多重備份
-                    img: d.itemThumbnailUrl || d.itemImageUrl || d.thumbnail,
-                    author: d.nickname || "未知"
-                };
-            }
-        } catch (e) { return null; }
-        return null;
-    },
-
-    /**
-     * 邏輯 B：名稱搜尋備案
-     */
-    async getItemDetailByName(itemName) {
-        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-        try {
-            const res = await this.proxyFetch(url);
-            const items = res.data?.items || res.list || [];
-            if (items.length > 0) {
-                const p = items[0];
-                return {
-                    id: p.itemId || p.id,
-                    price: p.targetPrice || p.itemPrice || 0,
-                    author: p.nickname || p.profileName || "未知",
-                    img: p.itemImageUrl || p.itemThumbnailUrl || p.thumbnail
+                    price: res.data.itemPrice,
+                    name: res.data.itemName,
+                    // 備援圖片邏輯：縮圖 > 原始圖
+                    img: res.data.itemThumbnailUrl || res.data.itemImageUrl || res.data.thumbnail,
+                    author: res.data.nickname || "未知"
                 };
             }
         } catch (e) { return null; }
@@ -70,10 +45,9 @@ const NexonAPI = {
 
     async getEquipList(input) {
         let ppsn = input.trim();
-        // 5碼轉PPSN
-        if (ppsn.length === 5 || (ppsn.startsWith('#') && ppsn.length === 6)) {
-            const clean = ppsn.startsWith('#') ? ppsn.substring(1) : ppsn;
-            const res = await this.proxyFetch(`https://mverse-api.nexon.com/profile/v1/profileCode/${clean}`);
+        // 支援 5 碼 ID 轉換為 PPSN
+        if (ppsn.length === 5) {
+            const res = await this.proxyFetch(`https://mverse-api.nexon.com/profile/v1/profileCode/${ppsn}`);
             ppsn = res.data.ppsn;
         }
 
@@ -84,24 +58,17 @@ const NexonAPI = {
         const rawItems = (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
 
         return await Promise.all(rawItems.map(async (item) => {
-            // 優先比對商城真實資料
-            let real = await this.getItemDetailById(item.itemId);
-            if (!real) real = await this.getItemDetailByName(item.itemName);
-            
-            // 【關鍵】圖片網址保險絲：按順序抓取第一個有值的網址
-            const finalImg = real?.img || item.itemImageUrl || item.itemThumbnailUrl || item.thumbnail;
+            const real = await this.getItemDetailById(item.itemId);
+            // 優先使用商城的完整網址，若無則回退到清單內的網址
+            const finalImg = real?.img || item.itemImageUrl || item.itemThumbnailUrl || "";
 
             return {
                 itemName: item.itemName,
-                itemId: real?.id || real?.itemId || item.itemId || item.ruid || "N/A",
-                // 價格格式化
-                targetPrice: real ? `${real.price} wc` : "已下架",
-                nickname: real?.author || item.nickname || "非公開作者",
-                // 使用保險絲過濾後的圖片
-                itemImageUrl: finalImg
+                itemId: real?.id || item.itemId || item.ruid || "N/A",
+                targetPrice: real ? real.price : "???",
+                nickname: real?.author || item.nickname || "未知",
+                itemImageUrl: finalImg // 這就是你要顯示的縮圖網址
             };
         }));
     }
 };
-
-window.NexonAPI = NexonAPI;

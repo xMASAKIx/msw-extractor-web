@@ -11,7 +11,8 @@
             --card-bg: #1e1e24;
             --text-color: #ffffff;
             --accent-color: #7e69f5;
-            --price-color: #4caf50;
+            /* 對應 Godot 中的 Color(0.4, 0.7, 0.5) */
+            --price-hint-color: rgb(102, 178, 127); 
             --label-color: #a0a0a0;
         }
 
@@ -26,7 +27,6 @@
             min-height: 100vh;
         }
 
-        /* 詳情彈窗容器 */
         .modal-card {
             background: var(--card-bg);
             width: 380px;
@@ -38,152 +38,96 @@
 
         .close-btn {
             position: absolute;
-            right: 20px;
-            top: 20px;
+            right: 20px; top: 20px;
             color: var(--label-color);
             cursor: pointer;
             font-size: 20px;
         }
 
-        /* 圖片預覽區 */
         .preview-box {
             background: #000000;
-            width: 100%;
-            height: 220px;
+            width: 100%; height: 220px;
             border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
             margin-bottom: 20px;
-            overflow: hidden;
         }
 
         .preview-box img {
-            max-width: 100%;
-            max-height: 100%;
-            image-rendering: pixelated; /* 保持像素風格清晰 */
+            max-width: 100%; max-height: 100%;
+            image-rendering: pixelated;
         }
 
-        /* 資料行樣式 */
         .info-row {
-            margin-bottom: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .info-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            margin-bottom: 12px;
+            display: flex; flex-direction: column;
         }
 
         .label {
             color: var(--label-color);
             font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            margin-bottom: 4px;
         }
 
-        .value {
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        /* 價格特化樣式 */
-        .price-text {
-            color: var(--price-color);
-            font-size: 28px;
+        /* 價格顯示：完全對照 Godot 樣式 */
+        .price-hint {
+            color: var(--price-hint-color);
+            font-size: 11px; /* font_size 11 */
             font-weight: bold;
-            margin: 10px 0;
-        }
-        .price-unit {
-            font-size: 14px;
-            margin-left: 4px;
-            color: var(--label-color);
+            margin-bottom: 16px;
         }
 
-        /* 複製區塊樣式 */
         .copy-wrapper {
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
             background: rgba(255,255,255,0.05);
-            padding: 8px 12px;
-            border-radius: 6px;
-            margin-top: 4px;
+            padding: 8px 12px; border-radius: 6px;
         }
 
         .truncate {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            flex: 1; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
             font-size: 14px;
-            color: #ddd;
         }
 
         .copy-icon {
-            color: #ffa726;
-            cursor: pointer;
-            padding-left: 10px;
-            font-size: 14px;
+            color: #ffa726; cursor: pointer;
+            margin-left: 10px;
         }
 
-        /* 同步按鈕 */
         .sync-btn {
             background: var(--accent-color);
-            color: white;
-            border: none;
-            width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            transition: opacity 0.2s;
-        }
-
-        .sync-btn:hover {
-            opacity: 0.9;
+            color: white; border: none;
+            width: 100%; padding: 14px;
+            border-radius: 10px; font-weight: bold;
+            cursor: pointer; margin-top: 10px;
+            display: flex; justify-content: center; gap: 8px;
         }
     </style>
 </head>
 <body>
 
-<div class="modal-card" id="detailCard">
+<div class="modal-card">
     <i class="fas fa-times close-btn"></i>
 
     <div class="preview-box">
-        <img id="detailImg" src="" alt="裝備預覽">
+        <img id="detailImg" src="" alt="">
     </div>
 
     <div class="info-row">
-        <div class="info-header">
-            <span class="label"><i class="fas fa-file-alt"></i> 商品名稱</span>
-            <i class="fas fa-file-signature copy-icon" onclick="copyValue('detailName')"></i>
-        </div>
+        <span class="label"><i class="fas fa-file-alt"></i> 商品名稱</span>
         <span class="value" id="detailName">載入中...</span>
     </div>
 
-    <div class="price-text">
-        <span id="detailPrice">0</span><span class="price-unit">wc</span>
+    <div class="price-hint" id="priceHint">
+        當前價格: 載入中...
     </div>
 
     <div class="info-row">
         <span class="label"><i class="fas fa-user-tag"></i> 作者</span>
-        <span class="value" id="detailAuthor">未知</span>
+        <span id="detailAuthor">未知</span>
     </div>
 
     <div class="info-row">
-        <div class="info-header">
-            <span class="label"><i class="fas fa-fingerprint"></i> 商品 ID</span>
-        </div>
+        <span class="label"><i class="fas fa-fingerprint"></i> 商品 ID</span>
         <div class="copy-wrapper">
             <span class="truncate" id="detailId">N/A</span>
             <i class="fas fa-file-signature copy-icon" onclick="copyValue('detailId')"></i>
@@ -191,56 +135,53 @@
     </div>
 
     <div class="info-row">
-        <div class="info-header">
-            <span class="label"><i class="fas fa-link"></i> 縮圖</span>
-        </div>
+        <span class="label"><i class="fas fa-link"></i> 縮圖</span>
         <div class="copy-wrapper">
-            <span class="truncate" id="detailThumbUrl">https://...</span>
+            <span class="truncate" id="detailThumbUrl">N/A</span>
             <i class="fas fa-file-signature copy-icon" onclick="copyValue('detailThumbUrl')"></i>
         </div>
     </div>
 
-    <button class="sync-btn">
-        🚀 同步至 GitHub
-    </button>
+    <button class="sync-btn">🚀 同步至 GitHub</button>
 </div>
 
-<script src="nexon_api.js"></script>
 <script>
     /**
-     * 渲染資料到介面上的範例函數
-     * 這裡的 item 物件應來自 NexonAPI.getEquipList() 的回傳結果
+     * 渲染函數：完全套用 Godot 的價格判斷邏輯
      */
     function renderItemDetail(item) {
+        // 1. 處理價格文字 (current_price < 0 ? "未知" : "%d WC")
+        const current_price = parseInt(item.targetPrice); 
+        let priceText = "";
+        
+        if (isNaN(current_price) || current_price < 0) {
+            priceText = "當前價格: 未知";
+        } else {
+            priceText = `當前價格: ${current_price} WC`;
+        }
+        
+        document.getElementById('priceHint').innerText = priceText;
+
+        // 2. 填充其餘資料
         document.getElementById('detailImg').src = item.itemImageUrl;
         document.getElementById('detailName').innerText = item.itemName;
-        document.getElementById('detailPrice').innerText = item.targetPrice.replace(' wc', '');
         document.getElementById('detailAuthor').innerText = item.nickname || "未知";
         document.getElementById('detailId').innerText = item.itemId;
         document.getElementById('detailThumbUrl').innerText = item.itemImageUrl;
     }
 
-    /**
-     * 複製功能
-     */
-    function copyValue(elementId) {
-        const text = document.getElementById(elementId).innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            // 這裡可以加入一個簡單的提示效果
-            console.log('已複製: ' + text);
-        });
+    function copyValue(id) {
+        const text = document.getElementById(id).innerText;
+        navigator.clipboard.writeText(text);
     }
 
-    // 測試用載入 (實際使用時由你的主程式觸發)
-    // window.onload = () => {
-    //    renderItemDetail({
-    //        itemName: "ɩKiana",
-    //        itemImageUrl: "https://mod-file.dn.nexoncdn.co.kr/shop/...",
-    //        targetPrice: "15 wc",
-    //        nickname: "未知",
-    //        itemId: "BKDH6CEBF"
-    //    });
-    // };
+    // 模擬從 API 獲取資料後的調用
+    // renderItemDetail({
+    //     itemName: "ɩKiana",
+    //     targetPrice: "15",
+    //     itemImageUrl: "...",
+    //     itemId: "BKDH6CEBF"
+    // });
 </script>
 
 </body>

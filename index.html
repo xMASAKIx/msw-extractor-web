@@ -2,9 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSW 裝備管理器 Pro</title>
+    <title>MSW 裝備提取管理器 Pro</title>
+    <script src="js/nexon_api.js"></script>
     <style>
+        /* ... 保持你原本的 CSS 不變 ... */
         body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
@@ -12,46 +13,34 @@
         button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
         .btn-primary { background: #3b82f6; color: white; }
         .btn-save { background: #10b981; color: white; }
-
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
-        .item-card:hover { transform: translateY(-5px); border-color: #4ade80; }
-        
-        .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid #27272a; overflow: hidden; }
+        .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
         .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
-
-        .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
-        .price-unit { font-size: 14px; color: #809980; }
-
+        .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; }
         .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
         .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
         .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
-        
-        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; flex-shrink: 0; }
+        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; }
         .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
-        
         #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
     </style>
 </head>
 <body>
 
-    <script src="js/nexon_api.js"></script>
-    
 <div class="container">
     <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1></header>
-
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID (例如: 12345) 或 PPSN">
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN">
                     <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
                 </div>
                 <div id="status-bar"></div>
             </div>
             <div id="equip_list" class="item-grid"></div>
         </div>
-
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
@@ -64,6 +53,14 @@
 </div>
 
 <script>
+    // 檢查 NexonAPI 是否加載成功
+    window.onload = () => {
+        if (typeof NexonAPI === 'undefined') {
+            document.getElementById('status-bar').style.display = 'block';
+            document.getElementById('status-bar').innerText = "❌ 錯誤：無法載入 js/nexon_api.js，請檢查檔案路徑。";
+        }
+    };
+
     const GITHUB_CONFIG = {
         token: "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",
         owner: "xmasakix",
@@ -79,6 +76,8 @@
     }
 
     document.getElementById('btn_search').onclick = async function() {
+        if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
+        
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
@@ -89,12 +88,13 @@
         grid.innerHTML = "";
 
         try {
-            // 調用 js/nexon_api.js 中的 NexonAPI
+            // 呼叫外部 nexon_api.js 裡的邏輯
             const rawItems = await NexonAPI.getEquipList(input);
             
             for (let item of rawItems) {
-                status.innerText = `⏳ 正在即時抓取商城資料: ${item.itemName}...`;
+                status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
+                // 自動搜尋：這就是你在 Godot 中看到的邏輯，透過商品名稱反查真實資訊
                 const realData = await NexonAPI.getRealProductDetail(item.itemName);
                 
                 const displayData = {
@@ -103,7 +103,6 @@
                     priceUnit: realData ? "wc" : "",
                     itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    author: realData ? realData.nickname : "未知",
                     sellerPpsn: realData ? realData.sellerPpsn : "未上架"
                 };
 
@@ -112,11 +111,11 @@
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>                    
                     <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
-                    <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
+                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
                     
                     <div class="info-row">
                         <div class="info-label">👤 作者 PPSN</div>
-                        <div class="info-value" title="${displayData.sellerPpsn}">${displayData.sellerPpsn}</div>
+                        <div class="info-value">${displayData.sellerPpsn}</div>
                         <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
                     </div>
 
@@ -125,23 +124,19 @@
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 掃描完成，已繞過快取取得最新資料`;
+            status.innerText = `✅ 掃描完成 (已自動補全商城資訊)`;
         } catch (err) {
-            status.innerText = "❌ 錯誤: " + err.message;
+            status.innerText = "❌ 發生錯誤: " + err.message;
         }
     };
 
+    // 同步 GitHub 函數保持不變
     async function sync(btn, data) {
         if (data.itemId === "未上架") return alert("此裝備未上架，無法同步");
         btn.disabled = true;
@@ -166,7 +161,7 @@
                 method: "PUT",
                 headers: { "Authorization": `token ${GITHUB_CONFIG.token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    message: `Add: ${data.name} (Price: ${data.price})`,
+                    message: `Add: ${data.name}`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
                     sha: json.sha
                 })

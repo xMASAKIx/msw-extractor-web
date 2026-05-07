@@ -1,81 +1,76 @@
 /**
- * 帳號管理模組 (AccountManager)
- * 負責處理多帳號保存、切換以及 LocalStorage 持久化
+ * 帳號與憑證管理模組 (LocalStorage 版本)
  */
-
 const AccountManager = {
-    // 儲存帳號列表的 Key
-    STORAGE_KEY: 'msw_saved_accounts',
-    CURRENT_ID_KEY: 'msw_current_user_id',
+    STORAGE_KEY: 'msw_accounts_v1',
 
-    // 取得所有已儲存的帳號
-    getAccounts() {
+    // 取得所有儲存的帳號
+    getAllAccounts() {
         const data = localStorage.getItem(this.STORAGE_KEY);
         return data ? JSON.parse(data) : [];
     },
 
-    // 保存帳號資訊 (對應 save_current_account)
-    saveAccount(userId, token, nickname = "") {
-        if (!userId || !token) return false;
-
-        let accounts = this.getAccounts();
-        const existingIndex = accounts.findIndex(a => a.userId === userId);
+    // 儲存單一帳號
+    saveAccount(userId, token) {
+        let accounts = this.getAllAccounts();
         
-        const accountData = {
-            userId: userId,
-            token: token,
-            nickname: nickname || `帳號 (...${userId.slice(-6)})`,
-            lastUpdated: new Date().toISOString()
-        };
-
-        if (existingIndex >= 0) {
-            accounts[existingIndex] = accountData;
+        // 檢查是否已存在同 ID 帳號，有的話就更新
+        const index = accounts.findIndex(acc => acc.userId === userId);
+        if (index !== -1) {
+            accounts[index].token = token;
+            accounts[index].lastUpdate = new Date().toISOString();
         } else {
-            accounts.push(accountData);
+            accounts.push({
+                userId: userId,
+                token: token,
+                lastUpdate: new Date().toISOString()
+            });
         }
 
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(accounts));
-        this.setCurrentAccount(userId);
-        return true;
+        this.renderAccountList(); // 儲存後立即更新介面
     },
 
-    // 切換當前活動帳號 (對應 switch_to_account)
-    setCurrentAccount(userId) {
-        const accounts = this.getAccounts();
-        const account = accounts.find(a => a.userId === userId);
-        
-        if (account) {
-            localStorage.setItem(this.CURRENT_ID_KEY, userId);
-            localStorage.setItem('msw_token', account.token);
-            localStorage.setItem('msw_user_id', account.userId);
-            
-            // 觸發事件讓 UI 更新 (類似 Godot 的 token_changed 訊號)
-            window.dispatchEvent(new Event('msw_account_changed'));
-            return true;
-        }
-        return false;
-    },
-
-    // 獲取當前帳號資訊
+    // 取得目前選中的帳號 (預設取最後一個更新的)
     getCurrentAccount() {
-        const userId = localStorage.getItem(this.CURRENT_ID_KEY);
-        if (!userId) return null;
-        return this.getAccounts().find(a => a.userId === userId);
+        const accounts = this.getAllAccounts();
+        return accounts.length > 0 ? accounts[0] : null;
     },
 
-    // 移除帳號
-    removeAccount(userId) {
-        let accounts = this.getAccounts();
-        accounts = accounts.filter(a => a.userId !== userId);
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(accounts));
-        
-        if (localStorage.getItem(this.CURRENT_ID_KEY) === userId) {
-            localStorage.removeItem(this.CURRENT_ID_KEY);
-            localStorage.removeItem('msw_token');
-            localStorage.removeItem('msw_user_id');
+    // 渲染右側清單介面
+    renderAccountList() {
+        const listContainer = document.getElementById('saved_accounts_list');
+        if (!listContainer) return;
+
+        const accounts = this.getAllAccounts();
+        if (accounts.length === 0) {
+            listContainer.innerHTML = '<p style="color: #52525b; font-size: 12px; text-align: center;">尚無儲存帳號</p>';
+            return;
+        }
+
+        listContainer.innerHTML = accounts.map(acc => `
+            <div class="account-item" onclick="AccountManager.selectAccount('${acc.userId}')">
+                <div style="font-weight: bold; color: #f4f4f5;">${acc.userId}</div>
+                <div style="font-size: 10px; color: #71717a; overflow: hidden; text-overflow: ellipsis;">
+                    ${acc.token.substring(0, 20)}...
+                </div>
+            </div>
+        `).join('');
+    },
+
+    // 選中帳號 (自動填入輸入框)
+    selectAccount(userId) {
+        const accounts = this.getAllAccounts();
+        const acc = accounts.find(a => a.userId === userId);
+        if (acc) {
+            document.getElementById('token_input').value = acc.token;
+            document.getElementById('userid_input').value = acc.userId;
+            alert(`已選取帳號: ${userId}`);
         }
     }
 };
 
-// 匯出模組
-window.AccountManager = AccountManager;
+// 頁面載入完成後執行第一次渲染
+document.addEventListener('DOMContentLoaded', () => {
+    AccountManager.renderAccountList();
+});

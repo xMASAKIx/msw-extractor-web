@@ -14,15 +14,15 @@
         .btn-save { background: #10b981; color: white; }
 
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
+        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; position: relative; overflow: hidden; }
         .item-card:hover { transform: translateY(-5px); border-color: #4ade80; }
         
         .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid #27272a; overflow: hidden; }
         .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
 
-        /* 價格樣式：對應 Godot Color(0.4, 0.7, 0.5) */
-        .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
-        .price-unit { font-size: 14px; color: #809980; }
+        /* %S 價格樣式：對應 Godot Color(0.4, 0.7, 0.5) */
+        .price-text { font-size: 32px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
+        .price-unit { font-size: 16px; color: #809980; font-weight: normal; }
 
         .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
         .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
@@ -43,7 +43,7 @@
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID (例如: 12345) 或 PPSN">
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN">
                     <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
                 </div>
                 <div id="status-bar"></div>
@@ -57,6 +57,9 @@
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
                 <button id="btn_save" class="btn-save">💾 儲存並刷新</button>
+            </div>
+            <div class="card" style="font-size: 13px; color: #a1a1aa;">
+                <p>💡 <b>提示：</b><br>價格 (%S) 抓取邏輯與 Godot 預購系統同步。如果顯示「未知」，通常代表該裝備為官方預設物或未在商城流通。</p>
             </div>
         </div>
     </div>
@@ -80,9 +83,8 @@
     }
 
     document.getElementById('btn_search').onclick = async function() {
-        // 核心檢查：確保 nexon_api.js 有正確載入
         if (typeof window.NexonAPI === 'undefined') {
-            alert("❌ 錯誤：找不到 NexonAPI 模組。請確認 nexon_api.js 是否與此 HTML 放在同個資料夾，且內部有執行 window.NexonAPI = NexonAPI;");
+            alert("❌ 錯誤：找不到 NexonAPI 模組。");
             return;
         }
 
@@ -96,21 +98,20 @@
         grid.innerHTML = "";
 
         try {
-            // 呼叫 API 抓取清單
             const rawItems = await window.NexonAPI.getEquipList(input);
             
             if (!rawItems || rawItems.length === 0) {
-                status.innerText = "⚠️ 找不到穿戴中的裝備或該玩家不存在。";
+                status.innerText = "⚠️ 找不到穿戴裝備。";
                 return;
             }
             
             for (let item of rawItems) {
-                status.innerText = `⏳ 正在校對商城資料: ${item.itemName}...`;
+                status.innerText = `⏳ 正在抓取 %S 價格: ${item.itemName}...`;
                 
-                // 獲取真實價格與詳細資料
-                const realData = await window.NexonAPI.getRealProductDetail(item.itemName);
+                // 傳入 itemName 與 itemId 進行精確校對
+                const realData = await window.NexonAPI.getRealProductDetail(item.itemName, item.itemId);
                 
-                // 價格處理 (相容 Godot 顯示邏輯)
+                // 純粹化價格處理：只拿 price，不拿狀態
                 let rawPrice = realData ? realData.price : -1;
                 let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
                 let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
@@ -119,27 +120,22 @@
                     name: item.itemName,
                     price: priceDisplay,
                     priceUnit: priceUnit,
-                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
-                    img: realData ? realData.img : (item.itemImageUrl || item.itemThumbnailUrl),
-                    author: realData ? realData.author : "未知"
+                    itemId: (realData && realData.itemId) ? realData.itemId : item.itemId,
+                    img: (realData && realData.img) ? realData.img : (item.itemImageUrl || item.itemThumbnailUrl),
+                    author: (realData && realData.author) ? realData.author : "官方/未知"
                 };
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}" onerror="this.src='https://via.placeholder.com/140?text=No+Image'"></div>                    
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
                     <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
                     <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
                     <div class="info-row">
                         <div class="info-label">🆔 商品 ID</div>
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
@@ -147,31 +143,28 @@
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 掃描與價格校對完成`;
+            status.innerText = `✅ %S 價格校對完成`;
         } catch (err) {
             status.innerText = "❌ 錯誤: " + err.message;
-            console.error("搜尋過程出錯:", err);
         }
     };
 
     async function sync(btn, data) {
-        if (data.itemId === "未上架") return alert("此裝備未在商城上架，無法同步 ID");
+        if (!data.itemId || data.itemId === "N/A") return alert("無效的商品 ID");
         btn.disabled = true;
         btn.innerText = "⏳ 同步中...";
         try {
             const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
             const res = await fetch(url, { headers: { "Authorization": `token ${GITHUB_CONFIG.token}` } });
-            if (!res.ok) throw new Error("無法獲取 GitHub 檔案資訊");
+            if (!res.ok) throw new Error("無法獲取 GitHub 資料");
             const json = await res.json();
             
-            // 處理 UTF-8 編碼
             const list = JSON.parse(decodeURIComponent(escape(atob(json.content))));
 
             if (list.some(i => String(i.id) === String(data.itemId))) {
-                throw new Error("此商品 ID 已存在於資料庫中，無需重複同步");
+                throw new Error("此 ID 已存在");
             }
 
-            // 依照 JSON 格式要求推入新數據
             list.push({
                 "keyword": data.name,
                 "wc": data.price === "未知" ? "未知" : data.price + "wc",
@@ -186,13 +179,13 @@
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    message: `Add: ${data.name} (Admin sync)`,
+                    message: `Sync Price: ${data.name} (${data.price})`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
                     sha: json.sha
                 })
             });
 
-            if (!updateRes.ok) throw new Error("GitHub 更新失敗，請檢查 Token 權限");
+            if (!updateRes.ok) throw new Error("GitHub 更新失敗");
             
             btn.innerText = "✅ 同步成功";
             btn.style.background = "#059669";
@@ -208,10 +201,8 @@
         const u = document.getElementById('userid_input').value.trim();
         if (t && u) {
             localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: u, token: t}]));
-            alert("憑證已儲存！頁面即將重新整理以應用設定。");
+            alert("憑證已儲存！");
             location.reload();
-        } else {
-            alert("請務必填寫 AccessToken 與 UserId");
         }
     };
 </script>

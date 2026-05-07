@@ -1,6 +1,6 @@
 /**
- * MSW Nexon API 核心模組 (穩定修復版)
- * 修復：當商城搜尋不到 (??? WC) 時，保留原始圖片與資料
+ * MSW Nexon API 核心模組 (穩定圖片版)
+ * 修復：確保縮圖網址遺失時，能自動抓取原始圖或商城圖
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -21,50 +21,60 @@ const NexonAPI = {
     async proxyFetch(url) {
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl, { headers: this.getHeaders() });
-
-        if (response.status === 401) throw new Error("憑證已失效，請重新儲存 AccessToken");
-        if (response.status === 530) throw new Error("Proxy 暫時繁忙 (530)，請稍後再試");
-        if (response.status === 429) throw new Error("請求太頻繁，請等 10 秒後再試");
-        
+        if (response.status === 401) throw new Error("憑證已失效");
         return await response.json();
     },
 
-    async getPpsnByCode(profileCode) {
-        const cleanCode = profileCode.startsWith('#') ? profileCode.substring(1) : profileCode;
-        const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${cleanCode}`;
-        const json = await this.proxyFetch(url);
-        if (json.data && json.data.ppsn) return json.data.ppsn;
-        throw new Error("找不到該 5 碼 ID 對應的玩家");
-    },
-
     /**
-     * 獲取商城真實資料
+     * 邏輯 A：從 Godot 預購腳本提取的真實資料查詢
      */
-    async getRealProductDetail(itemName) {
-        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
+    async getItemDetailById(itemId) {
+        if (!itemId || itemId === "0") return null;
+        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${itemId}`;
         try {
-            const res = await this.proxyFetch(searchUrl);
-            const items = res.data?.items || res.list || [];
-            if (items.length > 0) {
-                const p = items[0];
+            const res = await this.proxyFetch(url);
+            if (res.code === 0 && res.data) {
+                const d = res.data;
                 return {
-                    itemId: p.itemId || p.id,
-                    price: p.targetPrice !== undefined ? p.targetPrice : (p.itemPrice || 0),
-                    author: p.nickname || p.profileName || "未知",
-                    img: p.itemImageUrl || p.itemThumbnailUrl
+                    price: d.itemPrice,
+                    name: d.itemName,
+                    // 這裡也做圖片多重備份
+                    img: d.itemThumbnailUrl || d.itemImageUrl || d.thumbnail,
+                    author: d.nickname || "未知"
                 };
             }
-        } catch (e) { console.warn("商城比對失敗:", itemName); }
+        } catch (e) { return null; }
         return null;
     },
 
     /**
-     * 獲取穿戴清單 (核心修復邏輯)
+     * 邏輯 B：名稱搜尋備案
      */
+    async getItemDetailByName(itemName) {
+        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
+        try {
+            const res = await this.proxyFetch(url);
+            const items = res.data?.items || res.list || [];
+            if (items.length > 0) {
+                const p = items[0];
+                return {
+                    id: p.itemId || p.id,
+                    price: p.targetPrice || p.itemPrice || 0,
+                    author: p.nickname || p.profileName || "未知",
+                    img: p.itemImageUrl || p.itemThumbnailUrl || p.thumbnail
+                };
+            }
+        } catch (e) { return null; }
+        return null;
+    },
+
     async getEquipList(input) {
         let ppsn = input.trim();
+        // 5碼轉PPSN
         if (ppsn.length === 5 || (ppsn.startsWith('#') && ppsn.length === 6)) {
-            ppsn = await this.getPpsnByCode(ppsn);
+            const clean = ppsn.startsWith('#') ? ppsn.substring(1) : ppsn;
+            const res = await this.proxyFetch(`https://mverse-api.nexon.com/profile/v1/profileCode/${clean}`);
+            ppsn = res.data.ppsn;
         }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
@@ -73,19 +83,22 @@ const NexonAPI = {
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
         const rawItems = (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
 
-        // 逐一校對資料
         return await Promise.all(rawItems.map(async (item) => {
-            const real = await this.getRealProductDetail(item.itemName);
+            // 優先比對商城真實資料
+            let real = await this.getItemDetailById(item.itemId);
+            if (!real) real = await this.getItemDetailByName(item.itemName);
             
-            // 如果商城有資料就用商城的，沒資料就用原始穿戴清單的資料
+            // 【關鍵】圖片網址保險絲：按順序抓取第一個有值的網址
+            const finalImg = real?.img || item.itemImageUrl || item.itemThumbnailUrl || item.thumbnail;
+
             return {
                 itemName: item.itemName,
-                itemId: real ? real.itemId : (item.itemId || item.ruid || "N/A"),
-                targetPrice: real ? real.price : "已下架", 
-                nickname: real ? real.author : "非公開作者",
-                // 重要：如果商城查不到圖，一定要用原本 item 的圖片網址
-                itemImageUrl: real ? real.img : (item.itemImageUrl || item.itemThumbnailUrl),
-                isReal: !!real
+                itemId: real?.id || real?.itemId || item.itemId || item.ruid || "N/A",
+                // 價格格式化
+                targetPrice: real ? `${real.price} wc` : "已下架",
+                nickname: real?.author || item.nickname || "非公開作者",
+                // 使用保險絲過濾後的圖片
+                itemImageUrl: finalImg
             };
         }));
     }

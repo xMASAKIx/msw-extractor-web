@@ -1,90 +1,84 @@
 /**
- * Nexon MSW API 整合模組
- * 修正：強化 Proxy 機制與 530 錯誤處理
+ * MSW Nexon API 核心模組
+ * 整合了穩定版網址與動態 Token 儲存邏輯
  */
 const NexonAPI = {
-    RUNTIME_VERSION: "1.74.1", 
-    // 優先使用 corsproxy.io，備用使用 allorigins
-    PRIMARY_PROXY: "https://corsproxy.io/?",
-    BACKUP_PROXY: "https://api.allorigins.win/raw?url=",
+    // 優先使用你的原始穩定版網址配置
+    getHeaders: () => {
+        // 從 AccountManager 取得當前存好的帳號資料
+        const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
+        // 預設取第一組帳號，或依照你的需求調整
+        const currentAccount = accounts[0] || { userId: '', token: '' };
 
-    /**
-     * 通用的請求包裝，加入自動重試 Proxy 機制
-     */
-    async fetchViaProxy(targetUrl, options = {}, useBackup = false) {
-        const proxy = useBackup ? this.BACKUP_PROXY : this.PRIMARY_PROXY;
-        const finalUrl = proxy + encodeURIComponent(targetUrl);
+        return {
+            "mod-accesstoken": currentAccount.token,
+            "mod-user-id": currentAccount.userId,
+            "x-mod-client": "727d112f1370415e85686530ec048fb7",
+            "x-mod-runtime-version": "1.25.6.672",
+            "x-mod-client-platform": "win",
+            "mod-caller": "mod",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        };
+    },
 
+    // 封裝 Fetch 邏輯（使用 corsproxy.io）
+    async proxyFetch(url) {
+        // 使用你的原始穩定版 Proxy 格式
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        
         try {
-            const response = await fetch(finalUrl, options);
-            
-            // 如果遇到 530 或其他代理錯誤，切換備用 Proxy 再試一次
-            if ((response.status === 530 || !response.ok) && !useBackup) {
-                console.warn("主要 Proxy 失敗 (530)，嘗試切換備用 Proxy...");
-                return await this.fetchViaProxy(targetUrl, options, true);
+            const response = await fetch(proxyUrl, {
+                headers: this.getHeaders()
+            });
+
+            if (response.status === 401) {
+                throw new Error("憑證已失效 (UNAUTHORIZED)，請更新 Token");
             }
-            
-            return response;
+            if (!response.ok) {
+                // 如果遇到 530 錯誤，通常是 Proxy 暫時性問題
+                throw new Error(`伺服器錯誤 (代碼: ${response.status})`);
+            }
+            return await response.json();
         } catch (err) {
-            if (!useBackup) return await this.fetchViaProxy(targetUrl, options, true);
+            console.error("Fetch 失敗:", err);
             throw err;
         }
     },
 
     /**
-     * 1. Profile Code 轉換為 PPSN
+     * 1. 獲取 PPSN (由 5 碼 ID 轉換)
      */
     async getPpsnByCode(profileCode) {
-        const targetUrl = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+        const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+        const json = await this.proxyFetch(url);
         
-        try {
-            const response = await this.fetchViaProxy(targetUrl);
-            if (!response.ok) throw new Error("無法連接至轉換伺服器");
-            
-            const resData = await response.json();
-            if (resData && resData.data && resData.data.ppsn) {
-                return {
-                    ppsn: resData.data.ppsn,
-                    profileName: resData.data.profileName
-                };
-            } else {
-                throw new Error("找不到該玩家 Code");
-            }
-        } catch (err) {
-            throw new Error("ID 轉換失敗: " + err.message);
+        if (json.data && json.data.ppsn) {
+            return {
+                ppsn: json.data.ppsn,
+                profileName: json.data.profileName
+            };
+        } else {
+            throw new Error("找不到該玩家 ID");
         }
     },
 
     /**
-     * 2. 提取裝備清單
+     * 2. 獲取玩家穿戴裝備清單 (使用你提供的穩定網域)
      */
     async getEquipList(ppsn) {
-        const currentAccount = AccountManager.getCurrentAccount();
-        if (!currentAccount || !currentAccount.token) {
-            throw new Error("請先點選下方已儲存的帳號");
-        }
-
-        const targetUrl = `https://maplestoryworlds-api.nexon.com/api/v1/user/${ppsn}/avatar/equip-list`;
+        // 使用你一開始提供的穩定版 Gateway 網址
+        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+        const json = await this.proxyFetch(url);
         
-        const options = {
-            method: 'GET',
-            headers: {
-                'accept': 'application/json',
-                'mod-accesstoken': currentAccount.token,
-                'x-mod-runtime-version': this.RUNTIME_VERSION
-            }
-        };
-
-        try {
-            const response = await this.fetchViaProxy(targetUrl, options);
-
-            if (response.status === 401) throw new Error("憑證已失效");
-            if (!response.ok) throw new Error(`伺服器錯誤: ${response.status}`);
-
-            const resData = await response.json();
-            return (resData && resData.data && resData.data.items) ? resData.data.items : [];
-        } catch (err) {
-            throw new Error("裝備抓取失敗: " + err.message);
-        }
+        // 裝備類型白名單
+        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
+        
+        // 確保資料結構正確並過濾
+        const items = json.data?.items || [];
+        return items.filter(item => whitelist.includes(item.avatarType));
     }
 };
+
+// 匯出供頁面使用
+window.NexonAPI = NexonAPI;

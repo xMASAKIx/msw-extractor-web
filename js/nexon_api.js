@@ -58,9 +58,9 @@ const NexonAPI = {
 
             return {
                 price: d.itemPrice ?? d.targetPrice ?? 0,
-                sellerPpsn: d.sellerPpsn || "N/A", // 保留 PPSN 供同步使用
-                authorInfo: authorDisplay,        // 用於畫面顯示
-                nickname: authorName,
+                sellerPpsn: d.sellerPpsn || "N/A",
+                nickname: d.nickname || d.profileName || "未知",
+                profileCode: d.profileCode || "", // 確保有回傳 5 碼 ID
                 itemId: d.itemId || d.id || input
             };
         }

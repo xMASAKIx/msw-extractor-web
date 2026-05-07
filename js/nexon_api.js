@@ -35,8 +35,8 @@ const NexonAPI = {
         }
     },
 
-    async getRealProductDetail(itemName) {
-        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
+    async getRealProductDetail(itemId) {
+        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemId)}`;
         try {
             const res = await this.proxyFetch(searchUrl);
             const items = res?.data?.items || res?.list || [];

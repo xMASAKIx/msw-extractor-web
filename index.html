@@ -1,212 +1,88 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSW 裝備提取管理器</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --bg-color: #121214;
-            --card-bg: #1c1c1f;
-            --input-bg: #2a2a2e;
-            --accent: #3b82f6;
-            --success: #10b981;
-            --price-green: rgb(102, 178, 127);
-            --text-gray: #a0a0a0;
-        }
+// 全域變數，用來存放掃描到的裝備
+let currentEquips = [];
 
-        body {
-            background-color: var(--bg-color);
-            color: white;
-            font-family: "Segoe UI", system-ui, sans-serif;
-            margin: 0; padding: 20px;
-        }
+/**
+ * 點擊「開始掃描」按鈕
+ */
+async function startScan() {
+    const searchInput = document.getElementById('searchInput');
+    const equipGrid = document.getElementById('equipList');
+    const errorBox = document.getElementById('errorBox');
+    const input = searchInput.value.trim();
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 20px;
-        }
+    if (!input) {
+        alert("請輸入搜尋內容！");
+        return;
+    }
 
-        h1 { color: #4ade80; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-        .subtitle { color: var(--text-gray); font-size: 14px; margin-bottom: 20px; }
+    // 重置狀態
+    errorBox.style.display = 'none';
+    equipGrid.innerHTML = '<div style="color:gray; padding:20px;">掃描中...</div>';
 
-        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .card-title { font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-
-        /* 輸入框與按鈕 */
-        .search-group { display: flex; gap: 10px; }
-        input {
-            flex: 1; background: var(--input-bg); border: 1px solid #3f3f46;
-            padding: 10px 15px; border-radius: 8px; color: white;
-        }
-        button {
-            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold;
-        }
-        .btn-blue { background: var(--accent); color: white; }
-        .btn-green { background: var(--success); color: white; width: 100%; }
-
-        /* 錯誤提示 */
-        .error-msg {
-            background: #451a1a; color: #f87171; padding: 12px;
-            border-radius: 8px; margin-top: 15px; border-left: 4px solid #f87171;
-            display: none; /* 預設隱藏 */
-        }
-
-        /* 已儲存帳號項 */
-        .account-item {
-            background: #27272a; padding: 12px; border-radius: 8px; margin-top: 10px;
-        }
-        .account-id { font-weight: bold; font-size: 14px; }
-        .account-token { color: #52525b; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* 裝備列表區 */
-        .equip-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 15px; min-height: 200px;
-        }
-
-        /* 詳情彈窗 (Modal) */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center;
-            z-index: 1000;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: var(--card-bg); width: 380px; padding: 25px; border-radius: 20px; position: relative;
-        }
-        .preview-box { background: #000; height: 220px; border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-bottom: 15px; }
-        .preview-box img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
-
-        .info-row { margin-bottom: 12px; }
-        .info-label { color: var(--text-gray); font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .price-hint { color: var(--price-green); font-size: 11px; font-weight: bold; margin-bottom: 15px; }
-
-        .copy-field {
-            background: #2a2a32; padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;
-        }
-        .copy-field span { font-size: 13px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .copy-icon { color: #f59e0b; cursor: pointer; font-size: 14px; }
-
-        .sync-btn { background: #6366f1; color: white; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; margin-top: 20px; }
-    </style>
-</head>
-<body>
-
-    <h1><i class="fas fa-tshirt"></i> MSW 裝備提取管理器</h1>
-    <p class="subtitle">輸入 #後5碼 或 完整 PPSN 即可掃描 RUID</p>
-
-    <div class="container">
-        <div class="left-col">
-            <div class="card">
-                <div class="card-title"><i class="fas fa-search" style="color:#60a5fa"></i> 玩家搜尋</div>
-                <div class="search-group">
-                    <input type="text" id="searchInput" placeholder="bpt0p">
-                    <button class="btn-blue" onclick="startScan()">開始掃描</button>
-                </div>
-                <div id="errorBox" class="error-msg"><i class="fas fa-times-circle"></i> 失敗: Failed to fetch</div>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><i class="fas fa-box-open" style="color:#fbbf24"></i> 穿載中的裝備</div>
-                <div class="equip-grid" id="equipList">
-                    </div>
-            </div>
-        </div>
-
-        <div class="right-col">
-            <div class="card">
-                <div class="card-title"><i class="fas fa-key" style="color:#fbbf24"></i> 憑證設定</div>
-                <label class="info-label">Access Token</label>
-                <input type="password" id="tokenInput" placeholder="••••••••••••••••" style="margin-bottom:15px; width:90%">
-                
-                <label class="info-label">User ID (帳號別名)</label>
-                <input type="text" id="userIdInput" value="20372100006053110" style="margin-bottom:20px; width:90%">
-                
-                <button class="btn-green"><i class="fas fa-save"></i> 儲存憑證</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><i class="fas fa-users" style="color:#a78bfa"></i> 已儲存帳號</div>
-                <div class="account-item">
-                    <div class="account-id">20372100006053110</div>
-                    <div class="account-token">7c3d39fa672e461d9e69...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="detailModal">
-        <div class="modal-content">
-            <i class="fas fa-times" style="position:absolute; right:20px; top:20px; cursor:pointer;" onclick="closeModal()"></i>
-            <div class="preview-box">
-                <img id="modalImg" src="" alt="">
-            </div>
-
-            <div class="info-row">
-                <div class="info-label"><i class="fas fa-file-alt"></i> 商品名稱</div>
-                <div id="modalName" style="padding-left:22px">載入中...</div>
-            </div>
-
-            <div class="price-hint" id="modalPrice">當前價格: 載入中...</div>
-
-            <div class="info-row">
-                <div class="info-label"><i class="fas fa-user"></i> 作者</div>
-                <div id="modalAuthor" style="padding-left:22px">未知</div>
-            </div>
-
-            <div class="info-row">
-                <div class="info-label"><i class="fas fa-fingerprint"></i> 商品 ID</div>
-                <div class="copy-field" style="margin-left:22px">
-                    <span id="modalId">N/A</span>
-                    <i class="fas fa-file-signature copy-icon" onclick="copyText('modalId')"></i>
-                </div>
-            </div>
-
-            <div class="info-row">
-                <div class="info-label"><i class="fas fa-link"></i> 縮圖</div>
-                <div class="copy-field" style="margin-left:22px">
-                    <span id="modalUrl">N/A</span>
-                    <i class="fas fa-file-signature copy-icon" onclick="copyText('modalUrl')"></i>
-                </div>
-            </div>
-
-            <button class="sync-btn">🚀 同步至 GitHub</button>
-        </div>
-    </div>
-
-    <script src="nexon_api.js"></script>
-    <script>
-        function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+    try {
+        // 呼叫 nexon_api.js 中的核心功能
+        currentEquips = await NexonAPI.getEquipList(input);
         
-        function copyText(id) {
-            const text = document.getElementById(id).innerText;
-            navigator.clipboard.writeText(text);
+        if (currentEquips.length === 0) {
+            equipGrid.innerHTML = '<div style="color:gray; padding:20px;">未發現穿戴中的裝備</div>';
+            return;
         }
 
-        // 模擬渲染詳情邏輯
-        function showDetail(item) {
-            document.getElementById('modalImg').src = item.itemImageUrl;
-            document.getElementById('modalName').innerText = item.itemName;
-            document.getElementById('modalAuthor').innerText = item.nickname || "未知";
-            document.getElementById('modalId').innerText = item.itemId;
-            document.getElementById('modalUrl').innerText = item.itemImageUrl;
-            
-            // Godot 價格邏輯
-            const price = parseInt(item.targetPrice);
-            document.getElementById('modalPrice').innerText = `當前價格: ${ (price < 0 || isNaN(price)) ? "未知" : price + " WC" }`;
-            
-            document.getElementById('detailModal').classList.add('active');
-        }
+        // 清空並渲染裝備列表
+        equipGrid.innerHTML = '';
+        currentEquips.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'equip-item'; // 記得在 CSS 補上這個樣式
+            itemDiv.innerHTML = `
+                <div style="background:#000; width:64px; height:64px; border-radius:8px; cursor:pointer; display:flex; justify-content:center; align-items:center; border:1px solid #333;" 
+                     onclick="showDetailByIndex(${index})">
+                    <img src="${item.itemImageUrl}" style="max-width:50px; max-height:50px; image-rendering:pixelated;">
+                </div>
+            `;
+            equipGrid.appendChild(itemDiv);
+        });
 
-        async function startScan() {
-            // 這裡串接 NexonAPI.getEquipList()
-            console.log("開始掃描...");
-        }
-    </script>
-</body>
-</html>
+    } catch (err) {
+        console.error(err);
+        errorBox.innerText = `❌ 失敗: ${err.message}`;
+        errorBox.style.display = 'block';
+        equipGrid.innerHTML = '';
+    }
+}
+
+/**
+ * 點擊裝備小圖，顯示完整詳情彈窗
+ */
+function showDetailByIndex(index) {
+    const item = currentEquips[index];
+    if (!item) return;
+
+    // 填充彈窗資料
+    document.getElementById('modalImg').src = item.itemImageUrl;
+    document.getElementById('modalName').innerText = item.itemName;
+    document.getElementById('modalAuthor').innerText = item.nickname || "未知";
+    document.getElementById('modalId').innerText = item.itemId;
+    document.getElementById('modalUrl').innerText = item.itemImageUrl;
+    
+    // 套用 Godot 價格邏輯
+    const price = parseInt(item.targetPrice);
+    const priceText = (price < 0 || isNaN(price)) ? "未知" : `${price} WC`;
+    document.getElementById('modalPrice').innerText = `當前價格: ${priceText}`;
+    
+    // 顯示彈窗
+    document.getElementById('detailModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('detailModal').classList.remove('active');
+}
+
+function copyText(id) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const originalClass = btn.className;
+        btn.className = "fas fa-check"; // 複製成功變更圖示
+        setTimeout(() => btn.className = originalClass, 1000);
+    });
+}

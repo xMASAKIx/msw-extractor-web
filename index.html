@@ -100,26 +100,25 @@
 <script>
     // --- 儲存帳號邏輯 (核心修復) ---
     document.getElementById('btn_save_manual').onclick = function() {
-        // 抓取畫面上輸入框的值
-        const tokenValue = document.getElementById('token_input').value.trim();
-        const userIdValue = document.getElementById('userid_input').value.trim() || "未命名帳號";
+    const tokenInput = document.getElementById('token_input');
+    const userInput = document.getElementById('userid_input');
+    
+    const token = tokenInput.value.trim();
+    const userId = userInput.value.trim() || "未命名帳號";
 
-        if (!tokenValue) {
-            alert("❌ 請輸入 Access Token！");
-            return;
-        }
-
-        // 呼叫 account_manager.js 中的 saveAccount 方法
-        if (typeof AccountManager !== 'undefined') {
-            AccountManager.saveAccount(userIdValue, tokenValue);
-            alert("✅ 帳號「" + userIdValue + "」已儲存！");
-            // 儲存後立即刷新頁面，讓右側清單更新
-            location.reload();
-        } else {
-            console.error("找不到 AccountManager 模組");
-            alert("系統錯誤：找不到 account_manager.js");
-        }
-    };
+    if (token) {
+        // 執行儲存
+        AccountManager.saveAccount(userId, token);
+        
+        // 清空輸入框 (選選)
+        tokenInput.value = "";
+        userInput.value = "";
+        
+        alert(`✅ 帳號「${userId}」已儲存！`);
+    } else {
+        alert("❌ 請輸入 Access Token");
+    }
+};
 
     // --- 搜尋裝備邏輯 ---
     document.getElementById('btn_search').onclick = async function() {

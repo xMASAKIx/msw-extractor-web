@@ -1,5 +1,5 @@
 /**
- * MSW Nexon API 核心模組 - 穩定增強版
+ * MSW Nexon API 核心模組 - 2026 穩定增強版
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -16,24 +16,25 @@ const NexonAPI = {
             "Content-Type": "application/json"
         };
     },
+
     /**
      * 代理請求 - 加入強制作廢快取邏輯
      */
     async proxyFetch(url) {
-        // 在網址後方加入隨機時間戳記，確保每次請求網址都不同，繞過代理伺服器的快取
+        // 加入隨機時間戳記繞過代理快取
         const cacheBuster = `&_t=${Date.now()}`;
         const finalUrl = url.includes('?') ? (url + cacheBuster) : (url + "?" + cacheBuster.substring(1));
         
-        // 建議改用另一個代理，allorigins 快取非常嚴重
+        // 使用 allorigins 搭配 random 參數降低快取命中率
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(finalUrl)}`;
 
         try {
             const response = await fetch(proxyUrl, { 
                 headers: this.getHeaders(),
-                cache: 'no-store' // 同時告訴瀏覽器不要儲存本地快取
+                cache: 'no-store' 
             });
             
-            if (response.status === 401) throw new Error("AccessToken 已失效");
+            if (response.status === 401 || response.status === 403) throw new Error("AccessToken 已失效");
             return await response.json();
         } catch (e) {
             console.error("Fetch 失敗:", e);
@@ -42,32 +43,36 @@ const NexonAPI = {
     },
 
     /**
- * 核心：從商城搜尋商品獲取真實價格與 ID
- */
-async getRealProductDetail(itemName) {
-    // 加入 cache buster 避免 10 分鐘快取問題
-    const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-    
-    try {
-        const res = await this.proxyFetch(searchUrl);
-        const items = res.data?.items || res.list || [];
+     * 核心：從商城搜尋商品獲取真實價格、ID、以及賣家資訊 (PPSN)
+     */
+    async getRealProductDetail(itemName) {
+        // sort=1 代表最新上架或相關度排序
+        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
         
-        if (items.length > 0) {
-            const data = items[0];
-            return {
-                price: data.targetPrice || data.itemPrice || 0, 
-                itemId: data.itemId || data.id,           
-                img: data.itemThumbnailUrl || data.itemImageUrl || data.thumbnail, 
-                author: data.nickname || data.profileName || "未知",
-                // --- 新增：賣家 PPSN ---
-                sellerPpsn: data.sellerPpsn || "" 
-            };
+        try {
+            const res = await this.proxyFetch(searchUrl);
+            // 處理不同 API 版本的回傳結構
+            const items = res?.data?.items || res?.list || [];
+            
+            if (items.length > 0) {
+                const data = items[0];
+                
+                // 優先提取真實價格與賣家唯一辨識碼 (sellerPpsn)
+                return {
+                    price: data.itemPrice ?? data.targetPrice ?? 0, 
+                    itemId: data.itemId || data.id || "未知",           
+                    img: data.itemThumbnailUrl || data.itemImageUrl || data.thumbnail || "", 
+                    author: data.nickname || data.profileName || "未知",
+                    // 這裡就是你要的 sellerPpsn
+                    sellerPpsn: data.sellerPpsn || "未知",
+                    avatarStatus: data.avatarStatus || "" 
+                };
+            }
+        } catch (e) {
+            console.error(`無法獲取商品 [${itemName}] 的商城詳情:`, e);
         }
-    } catch (e) {
-        console.error(`無法獲取商品 [${itemName}] 的商城詳情:`, e);
-    }
-    return null;
-},
+        return null;
+    },
 
     /**
      * 將 5 碼 ID 轉換為系統用的 PPSN
@@ -76,7 +81,7 @@ async getRealProductDetail(itemName) {
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
         try {
             const json = await this.proxyFetch(url);
-            if (json.data && json.data.ppsn) return json.data.ppsn;
+            if (json?.data?.ppsn) return json.data.ppsn;
         } catch (e) {
             throw new Error(`玩家 ID (${profileCode}) 查詢失敗`);
         }
@@ -94,8 +99,6 @@ async getRealProductDetail(itemName) {
         }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-        
-        // --- 修正點：必須先執行 proxyFetch 並賦值給 json ---
         const json = await this.proxyFetch(url); 
         
         if (!json || !json.data) return [];
@@ -109,6 +112,7 @@ async getRealProductDetail(itemName) {
             itemImageUrl: item.itemImageUrl || item.itemThumbnailUrl || ""
         }));
     }
+};
 
 // 掛載到全域讓 index.html 存取
 window.NexonAPI = NexonAPI;

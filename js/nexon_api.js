@@ -1,5 +1,5 @@
 /**
- * MSW Nexon API 核心模組 - 徹底修復版
+ * MSW Nexon API 核心模組 - 5碼ID修復版
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -14,12 +14,15 @@ const NexonAPI = {
         };
     },
 
-    async proxyFetch(url) {
-        // 繞過快取
-        const cacheBuster = `&_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        const finalUrl = url + cacheBuster;
+    async proxyFetch(url, isProfile = false) {
+        // 只有非 Profile API 才強制加上 & 參數，避免某些 API 不支援多餘參數而報錯
+        let finalUrl = url;
+        if (!isProfile) {
+            const separator = url.includes('?') ? '&' : '?';
+            const cacheBuster = `${separator}_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
+            finalUrl = url + cacheBuster;
+        }
         
-        // 更換代理為 corsproxy.io (支援自定義 Headers 且較少 Preflight 問題)
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
         try {
@@ -52,18 +55,31 @@ const NexonAPI = {
             }
         } catch (e) { console.error("商城搜尋失敗", e); }
         return null;
-    }, // <-- 檢查這裡的逗號
+    },
 
     async getPpsnByCode(profileCode) {
+        // 修正：針對 Profile API 使用專用的請求標記
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-        const json = await this.proxyFetch(url);
-        if (json?.data?.ppsn) return json.data.ppsn;
-        throw new Error("找不到該玩家");
+        try {
+            const json = await this.proxyFetch(url, true);
+            if (json?.data?.ppsn) {
+                console.log(`解析成功: ${profileCode} -> ${json.data.ppsn}`);
+                return json.data.ppsn;
+            }
+            throw new Error("API 未回傳 PPSN 資料");
+        } catch (e) {
+            console.error("5碼ID轉換失敗:", e);
+            throw new Error("找不到該玩家，請確認 5 碼 ID 是否正確");
+        }
     },
 
     async getEquipList(input) {
         let ppsn = input.trim();
-        if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
+        
+        // 判斷是否為 5 碼 ID
+        if (ppsn.length === 5) {
+            ppsn = await this.getPpsnByCode(ppsn);
+        }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
@@ -72,5 +88,4 @@ const NexonAPI = {
     }
 };
 
-// 掛載到全域
 window.NexonAPI = NexonAPI;

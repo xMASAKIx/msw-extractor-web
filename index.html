@@ -1,88 +1,273 @@
-// 全域變數，用來存放掃描到的裝備
-let currentEquips = [];
-
-/**
- * 點擊「開始掃描」按鈕
- */
-async function startScan() {
-    const searchInput = document.getElementById('searchInput');
-    const equipGrid = document.getElementById('equipList');
-    const errorBox = document.getElementById('errorBox');
-    const input = searchInput.value.trim();
-
-    if (!input) {
-        alert("請輸入搜尋內容！");
-        return;
-    }
-
-    // 重置狀態
-    errorBox.style.display = 'none';
-    equipGrid.innerHTML = '<div style="color:gray; padding:20px;">掃描中...</div>';
-
-    try {
-        // 呼叫 nexon_api.js 中的核心功能
-        currentEquips = await NexonAPI.getEquipList(input);
-        
-        if (currentEquips.length === 0) {
-            equipGrid.innerHTML = '<div style="color:gray; padding:20px;">未發現穿戴中的裝備</div>';
-            return;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSW 裝備提取管理器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #121214;
+            --card-bg: #1c1c1f;
+            --input-bg: #2a2a2e;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --price-green: rgb(102, 178, 127); /* Godot Color(0.4, 0.7, 0.5) */
+            --text-gray: #a0a0a0;
         }
 
-        // 清空並渲染裝備列表
-        equipGrid.innerHTML = '';
-        currentEquips.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'equip-item'; // 記得在 CSS 補上這個樣式
-            itemDiv.innerHTML = `
-                <div style="background:#000; width:64px; height:64px; border-radius:8px; cursor:pointer; display:flex; justify-content:center; align-items:center; border:1px solid #333;" 
-                     onclick="showDetailByIndex(${index})">
-                    <img src="${item.itemImageUrl}" style="max-width:50px; max-height:50px; image-rendering:pixelated;">
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            margin: 0; padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        h1 { color: #4ade80; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .subtitle { color: var(--text-gray); font-size: 14px; margin-bottom: 20px; }
+
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2d2d30; }
+        .card-title { font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+        /* 搜尋與輸入框 */
+        .search-group { display: flex; gap: 10px; }
+        input {
+            flex: 1; background: var(--input-bg); border: 1px solid #3f3f46;
+            padding: 10px 15px; border-radius: 8px; color: white;
+            outline: none;
+        }
+        input:focus { border-color: var(--accent); }
+        
+        button { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-blue { background: var(--accent); color: white; }
+        .btn-blue:hover { background: #2563eb; }
+        .btn-green { background: var(--success); color: white; width: 100%; margin-top: 10px; }
+
+        /* 錯誤提示 */
+        .error-msg {
+            background: #451a1a; color: #f87171; padding: 12px;
+            border-radius: 8px; margin-top: 15px; border-left: 4px solid #f87171;
+            display: none; font-size: 14px;
+        }
+
+        /* 裝備列表區 */
+        .equip-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 15px; min-height: 100px; padding: 10px 0;
+        }
+        .equip-slot {
+            background: #000; width: 70px; height: 70px; border-radius: 8px;
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
+            border: 1px solid #333; transition: 0.2s;
+        }
+        .equip-slot:hover { border-color: var(--accent); transform: scale(1.05); }
+        .equip-slot img { max-width: 55px; max-height: 55px; image-rendering: pixelated; }
+
+        /* 詳情彈窗 */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card-bg); width: 380px; padding: 25px; border-radius: 20px; position: relative; }
+        
+        .preview-box { background: #000; height: 220px; border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-bottom: 15px; }
+        .preview-box img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
+
+        .info-row { margin-bottom: 12px; }
+        .info-label { color: var(--text-gray); font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .info-val { padding-left: 22px; font-size: 15px; }
+        
+        .price-hint { color: var(--price-green); font-size: 11px; font-weight: bold; margin: 5px 0 15px 22px; }
+
+        .copy-field {
+            background: #2a2a32; padding: 8px 12px; border-radius: 6px; 
+            display: flex; align-items: center; justify-content: space-between; margin-left: 22px;
+        }
+        .copy-field span { font-size: 13px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .copy-icon { color: #f59e0b; cursor: pointer; font-size: 14px; margin-left: 10px; }
+
+        .sync-btn { background: #6366f1; color: white; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1><i class="fas fa-tshirt"></i> MSW 裝備提取管理器</h1>
+    <p class="subtitle">輸入 #後5碼 或 完整 PPSN 即可掃描 RUID</p>
+
+    <div class="container">
+        <div class="left-col">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-search" style="color:#60a5fa"></i> 玩家搜尋</div>
+                <div class="search-group">
+                    <input type="text" id="searchInput" placeholder="請輸入玩家 ID 或 5 碼代碼">
+                    <button class="btn-blue" onclick="startScan()">開始掃描</button>
                 </div>
-            `;
-            equipGrid.appendChild(itemDiv);
-        });
+                <div id="errorBox" class="error-msg"></div>
+            </div>
 
-    } catch (err) {
-        console.error(err);
-        errorBox.innerText = `❌ 失敗: ${err.message}`;
-        errorBox.style.display = 'block';
-        equipGrid.innerHTML = '';
-    }
-}
+            <div class="card">
+                <div class="card-title"><i class="fas fa-box-open" style="color:#fbbf24"></i> 穿載中的裝備</div>
+                <div class="equip-grid" id="equipList">
+                    <div style="color:#52525b; font-size:14px;">等待掃描...</div>
+                </div>
+            </div>
+        </div>
 
-/**
- * 點擊裝備小圖，顯示完整詳情彈窗
- */
-function showDetailByIndex(index) {
-    const item = currentEquips[index];
-    if (!item) return;
+        <div class="right-col">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-key" style="color:#fbbf24"></i> 憑證設定</div>
+                <div class="info-label">Access Token</div>
+                <input type="password" id="tokenInput" placeholder="請輸入憑證">
+                
+                <div class="info-label" style="margin-top:15px;">User ID (帳號別名)</div>
+                <input type="text" id="userIdInput" placeholder="203721...">
+                
+                <button class="btn-green" onclick="saveCredentials()"><i class="fas fa-save"></i> 儲存憑證</button>
+            </div>
 
-    // 填充彈窗資料
-    document.getElementById('modalImg').src = item.itemImageUrl;
-    document.getElementById('modalName').innerText = item.itemName;
-    document.getElementById('modalAuthor').innerText = item.nickname || "未知";
-    document.getElementById('modalId').innerText = item.itemId;
-    document.getElementById('modalUrl').innerText = item.itemImageUrl;
-    
-    // 套用 Godot 價格邏輯
-    const price = parseInt(item.targetPrice);
-    const priceText = (price < 0 || isNaN(price)) ? "未知" : `${price} WC`;
-    document.getElementById('modalPrice').innerText = `當前價格: ${priceText}`;
-    
-    // 顯示彈窗
-    document.getElementById('detailModal').classList.add('active');
-}
+            <div class="card">
+                <div class="card-title"><i class="fas fa-users" style="color:#a78bfa"></i> 已儲存帳號</div>
+                <div id="savedAccounts">
+                    </div>
+            </div>
+        </div>
+    </div>
 
-function closeModal() {
-    document.getElementById('detailModal').classList.remove('active');
-}
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <i class="fas fa-times" style="position:absolute; right:20px; top:20px; cursor:pointer; color:#666;" onclick="closeModal()"></i>
+            <div class="preview-box">
+                <img id="mImg" src="" alt="">
+            </div>
 
-function copyText(id) {
-    const text = document.getElementById(id).innerText;
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = event.target;
-        const originalClass = btn.className;
-        btn.className = "fas fa-check"; // 複製成功變更圖示
-        setTimeout(() => btn.className = originalClass, 1000);
-    });
-}
+            <div class="info-row">
+                <div class="info-label"><i class="fas fa-file-alt"></i> 名稱</div>
+                <div class="info-val" id="mName">載入中...</div>
+            </div>
+
+            <div class="price-hint" id="mPrice">當前價格: 載入中...</div>
+
+            <div class="info-row">
+                <div class="info-label"><i class="fas fa-user"></i> 作者</div>
+                <div class="info-val" id="mAuthor">未知</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label"><i class="fas fa-fingerprint"></i> 商品 ID</div>
+                <div class="copy-field">
+                    <span id="mId">N/A</span>
+                    <i class="fas fa-file-signature copy-icon" onclick="copyValue('mId')"></i>
+                </div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label"><i class="fas fa-link"></i> 縮圖</div>
+                <div class="copy-field">
+                    <span id="mUrl">N/A</span>
+                    <i class="fas fa-file-signature copy-icon" onclick="copyValue('mUrl')"></i>
+                </div>
+            </div>
+
+            <button class="sync-btn">🚀 同步至 GitHub</button>
+        </div>
+    </div>
+
+    <script src="nexon_api.js"></script>
+    <script>
+        let scannedData = [];
+
+        // 初始化：載入本地憑證
+        window.onload = () => {
+            const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
+            if(accounts.length > 0) {
+                document.getElementById('tokenInput').value = accounts[0].token;
+                document.getElementById('userIdInput').value = accounts[0].userId;
+                renderAccountList(accounts);
+            }
+        };
+
+        function saveCredentials() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const userId = document.getElementById('userIdInput').value.trim();
+            if(!token || !userId) return alert("請填寫完整資訊");
+            
+            const accounts = [{ userId, token }];
+            localStorage.setItem('msw_accounts_v1', JSON.stringify(accounts));
+            renderAccountList(accounts);
+            alert("憑證已儲存");
+        }
+
+        function renderAccountList(accounts) {
+            const list = document.getElementById('savedAccounts');
+            list.innerHTML = accounts.map(a => `
+                <div style="background:#27272a; padding:10px; border-radius:8px; margin-top:8px;">
+                    <div style="font-size:14px; font-weight:bold;">${a.userId}</div>
+                    <div style="font-size:11px; color:#52525b; overflow:hidden; text-overflow:ellipsis;">${a.token}</div>
+                </div>
+            `).join('');
+        }
+
+        async function startScan() {
+            const val = document.getElementById('searchInput').value.trim();
+            const grid = document.getElementById('equipList');
+            const err = document.getElementById('errorBox');
+
+            if(!val) return;
+            err.style.display = 'none';
+            grid.innerHTML = '<div style="color:gray; font-size:14px;">掃描中...</div>';
+
+            try {
+                scannedData = await NexonAPI.getEquipList(val);
+                grid.innerHTML = '';
+                
+                scannedData.forEach((item, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'equip-slot';
+                    div.onclick = () => showDetail(i);
+                    div.innerHTML = `<img src="${item.itemImageUrl}">`;
+                    grid.appendChild(div);
+                });
+            } catch (e) {
+                err.innerText = `❌ 失敗: ${e.message}`;
+                err.style.display = 'block';
+                grid.innerHTML = '';
+            }
+        }
+
+        function showDetail(index) {
+            const item = scannedData[index];
+            document.getElementById('mImg').src = item.itemImageUrl;
+            document.getElementById('mName').innerText = item.itemName;
+            document.getElementById('mAuthor').innerText = item.nickname || "未知";
+            document.getElementById('mId').innerText = item.itemId;
+            document.getElementById('mUrl').innerText = item.itemImageUrl;
+            
+            const p = parseInt(item.targetPrice);
+            document.getElementById('mPrice').innerText = `當前價格: ${ (isNaN(p) || p < 0) ? "未知" : p + " WC" }`;
+            
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+        function copyValue(id) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const icon = event.target;
+                icon.className = "fas fa-check";
+                setTimeout(() => icon.className = "fas fa-file-signature", 1000);
+            });
+        }
+    </script>
+</body>
+</html>

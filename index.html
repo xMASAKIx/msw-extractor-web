@@ -103,9 +103,10 @@
                 priceUnit: realData ? "wc" : "",
                 itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                 img: item.itemImageUrl || item.itemThumbnailUrl,
+                // 只有在 profileCode 有值的時候才加上 #
                 authorDisplay: realData 
-                ? `${realData.nickname || '未知'}#${realData.profileCode || ''}` 
-                : "未上架",
+                    ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
+                    : "未上架",
                 sellerPpsn: realData ? realData.sellerPpsn : "未上架"
             };
 

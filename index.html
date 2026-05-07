@@ -64,84 +64,6 @@
 </div>
 
 <script>
-    const NexonAPI = {
-        getHeaders: () => {
-            const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
-            const currentAccount = accounts[0] || { userId: '', token: '' };
-            return {
-                "mod-accesstoken": currentAccount.token,
-                "mod-user-id": currentAccount.userId,
-                "x-mod-client": "727d112f1370415e85686530ec048fb7",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache"
-            };
-        },
-
-        async proxyFetch(url) {
-            // 每次請求都生成全新的隨機參數，強制代理伺服器重新抓取資料
-            const cacheBuster = `&nocache=${Date.now()}_${Math.random().toString(36).substring(7)}`;
-            const finalUrl = url + cacheBuster;
-            
-            // 使用 allorigins /get 並開啟 disableCache 參數
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(finalUrl)}&disableCache=true`;
-
-            try {
-                const response = await fetch(proxyUrl, { 
-                    headers: this.getHeaders(),
-                    cache: 'no-store' 
-                });
-                const res = await response.json();
-                
-                // allorigins 的資料在 contents 中，且為字串格式
-                const data = typeof res.contents === 'string' ? JSON.parse(res.contents) : res.contents;
-                
-                if (data?.code === 401 || data?.code === 403) throw new Error("憑證失效，請更新憑證");
-                return data;
-            } catch (e) {
-                console.error("代理請求失敗:", e);
-                return null;
-            }
-        },
-
-        async getPpsnByCode(profileCode) {
-            const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-            const json = await this.proxyFetch(url);
-            if (json?.data?.ppsn) return json.data.ppsn;
-            throw new Error("找不到該玩家，請檢查 5 碼 ID");
-        },
-
-        async getRealProductDetail(itemName) {
-            const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-            try {
-                const res = await this.proxyFetch(searchUrl);
-                // 根據 Log，資料可能在 res.data.items[0]
-                const items = res?.data?.items || res?.list || [];
-                if (items.length > 0) {
-                    const d = items[0];
-                    return {
-                        price: d.itemPrice ?? d.targetPrice ?? 0,
-                        sellerPpsn: d.sellerPpsn || "N/A",
-                        nickname: d.nickname || "未知",
-                        itemId: d.itemId || d.id
-                    };
-                }
-            } catch (e) { console.error("商城校對失敗", e); }
-            return null;
-        },
-
-        async getEquipList(input) {
-            let ppsn = input.trim();
-            if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
-
-            const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-            const json = await this.proxyFetch(url);
-            const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-            return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
-        }
-    };
-
     const GITHUB_CONFIG = {
         token: "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",
         owner: "xmasakix",
@@ -167,6 +89,7 @@
         grid.innerHTML = "";
 
         try {
+            // 調用 js/nexon_api.js 中的 NexonAPI
             const rawItems = await NexonAPI.getEquipList(input);
             
             for (let item of rawItems) {
@@ -174,7 +97,6 @@
                 
                 const realData = await NexonAPI.getRealProductDetail(item.itemName);
                 
-                // 優先使用真實抓到的資料，抓不到才用原本的
                 const displayData = {
                     name: item.itemName,
                     price: realData ? realData.price : "未知",

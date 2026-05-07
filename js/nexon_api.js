@@ -1,5 +1,5 @@
 /**
- * MSW Nexon API 核心模組 - 徹底去快取版
+ * MSW Nexon API 核心模組 - 徹底修復版
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -8,114 +8,69 @@ const NexonAPI = {
         return {
             "mod-accesstoken": currentAccount.token,
             "mod-user-id": currentAccount.userId,
+            "x-mod-client": "727d112f1370415e85686530ec048fb7",
             "Accept": "application/json",
-            "Content-Type": "application/json",
-            // 強制要求瀏覽器與代理不使用快取
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
+            "Content-Type": "application/json"
         };
     },
 
     async proxyFetch(url) {
-    // 強制去快取：加入時間戳記與隨機字串
-    const cacheBuster = `&_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const finalUrl = url + cacheBuster;
-    
-    // 改用支援自定義 Header 較穩定的 corsproxy.io
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
+        // 繞過快取
+        const cacheBuster = `&_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const finalUrl = url + cacheBuster;
+        
+        // 更換代理為 corsproxy.io (支援自定義 Headers 且較少 Preflight 問題)
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
-    try {
-        const response = await fetch(proxyUrl, { 
-            headers: this.getHeaders(),
-            cache: 'no-store' 
-        });
-        
-        if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
-        
-        // 直接回傳 JSON，不需要解析 .contents (因為不是 allorigins)
-        return await response.json();
-    } catch (e) {
-        console.error("代理請求失敗:", e);
-        return null;
-    }
-},
-
-    /**
-     * 核心：從商城搜尋商品獲取真實價格與作者 ID (PPSN)
-     */
-    async getRealProductDetail(itemName) {
-        // 注意：這裡直接請求單一商品的 search，並確保關鍵字完全符合
-        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-        
         try {
-            const res = await this.proxyFetch(searchUrl);
+            const response = await fetch(proxyUrl, { 
+                headers: this.getHeaders(),
+                cache: 'no-store' 
+            });
             
-            // 根據你提供的 Log 結構，資料層級在 res.data.items 或是 res.data
-            let targetData = null;
-            if (res?.data?.items && res.data.items.length > 0) {
-                targetData = res.data.items[0];
-            } else if (res?.data && !Array.isArray(res.data)) {
-                targetData = res.data;
-            }
-
-            if (targetData) {
-                return {
-                    // 抓取你 Log 裡的 itemPrice: 15.0
-                    price: targetData.itemPrice ?? targetData.targetPrice ?? 0, 
-                    itemId: targetData.itemId || targetData.id || "N/A",           
-                    img: targetData.itemThumbnailUrl || targetData.itemImageUrl || "", 
-                    author: targetData.nickname || "未知",
-                    // 抓取你 Log 裡的 sellerPpsn: "20372100008443475"
-                    sellerPpsn: targetData.sellerPpsn || "N/A"
-                };
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
         } catch (e) {
-            console.error(`解析 [${itemName}] 出錯:`, e);
+            console.error("代理請求失敗:", e);
+            return null;
         }
-        return null;
-    }
-};
-
-    /**
-     * 將 5 碼 ID 轉換為系統用的 PPSN
-     */
-    async getPpsnByCode(profileCode) {
-        const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-        try {
-            const json = await this.proxyFetch(url);
-            if (json?.data?.ppsn) return json.data.ppsn;
-        } catch (e) {
-            throw new Error(`玩家 ID (${profileCode}) 查詢失敗`);
-        }
-        throw new Error("找不到該玩家，請檢查 5 碼 ID 是否正確");
     },
 
-    /**
-     * 抓取玩家當前穿戴清單
-     */
+    async getRealProductDetail(itemName) {
+        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
+        try {
+            const res = await this.proxyFetch(searchUrl);
+            const items = res?.data?.items || res?.list || [];
+            if (items.length > 0) {
+                const d = items[0];
+                return {
+                    price: d.itemPrice ?? d.targetPrice ?? 0,
+                    sellerPpsn: d.sellerPpsn || "N/A",
+                    nickname: d.nickname || d.profileName || "未知",
+                    itemId: d.itemId || d.id
+                };
+            }
+        } catch (e) { console.error("商城搜尋失敗", e); }
+        return null;
+    }, // <-- 檢查這裡的逗號
+
+    async getPpsnByCode(profileCode) {
+        const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+        const json = await this.proxyFetch(url);
+        if (json?.data?.ppsn) return json.data.ppsn;
+        throw new Error("找不到該玩家");
+    },
+
     async getEquipList(input) {
         let ppsn = input.trim();
-        
-        if (ppsn.length === 5) {
-            ppsn = await this.getPpsnByCode(ppsn);
-        }
+        if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-        const json = await this.proxyFetch(url); 
-        
-        if (!json || !json.data) return [];
-
+        const json = await this.proxyFetch(url);
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-        const rawItems = (json.data.items || []).filter(item => whitelist.includes(item.avatarType));
-
-        return rawItems.map(item => ({
-            itemName: item.itemName,
-            itemId: item.itemId || item.ruid || "N/A", 
-            itemImageUrl: item.itemImageUrl || item.itemThumbnailUrl || ""
-        }));
+        return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
     }
 };
 
-// 掛載到全域讓 index.html 存取
+// 掛載到全域
 window.NexonAPI = NexonAPI;

@@ -73,19 +73,28 @@ const NexonAPI = {
         }
     },
 
-    async getEquipList(input) {
-        let ppsn = input.trim();
-        
-        // 判斷是否為 5 碼 ID
-        if (ppsn.length === 5) {
-            ppsn = await this.getPpsnByCode(ppsn);
-        }
+// 在 nexon_api.js 中優化後的邏輯範例
+    async getEquipListExtended(input) {
+    let ppsn = input.trim();
+    if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
 
-        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-        const json = await this.proxyFetch(url);
-        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-        return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
-    }
+    const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+    const json = await this.proxyFetch(url);
+    
+    const items = (json?.data?.items || []);
+    
+    // 自動針對每個裝備搜尋真實價格與 PPSN
+    const enrichedItems = await Promise.all(items.map(async (item) => {
+        const detail = await this.getRealProductDetail(item.itemName);
+        return {
+            ...item,
+            realPrice: detail ? detail.price : "未知",
+            realSellerPpsn: detail ? detail.sellerPpsn : "未上架",
+            realNickname: detail ? detail.nickname : "未知"
+        };
+    }));
+
+    return enrichedItems;
 };
 
 window.NexonAPI = NexonAPI;

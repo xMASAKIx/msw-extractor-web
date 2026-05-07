@@ -42,29 +42,32 @@ const NexonAPI = {
     },
 
     /**
-     * 核心：從商城搜尋商品獲取真實價格與 ID
-     */
-    async getRealProductDetail(itemName) {
-        // 使用 sort=1 (最新) 搜尋
-        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-        try {
-            const res = await this.proxyFetch(searchUrl);
-            const items = res.data?.items || res.list || [];
-            
-            if (items.length > 0) {
-                const data = items[0];
-                return {
-                    price: data.targetPrice || data.itemPrice || 0, 
-                    itemId: data.itemId || data.id,           
-                    img: data.itemThumbnailUrl || data.itemImageUrl || data.thumbnail, 
-                    author: data.nickname || data.profileName || "未知"
-                };
-            }
-        } catch (e) {
-            console.error(`無法獲取商品 [${itemName}] 的商城詳情:`, e);
+ * 核心：從商城搜尋商品獲取真實價格與 ID
+ */
+async getRealProductDetail(itemName) {
+    // 加入 cache buster 避免 10 分鐘快取問題
+    const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
+    
+    try {
+        const res = await this.proxyFetch(searchUrl);
+        const items = res.data?.items || res.list || [];
+        
+        if (items.length > 0) {
+            const data = items[0];
+            return {
+                price: data.targetPrice || data.itemPrice || 0, 
+                itemId: data.itemId || data.id,           
+                img: data.itemThumbnailUrl || data.itemImageUrl || data.thumbnail, 
+                author: data.nickname || data.profileName || "未知",
+                // --- 新增：賣家 PPSN ---
+                sellerPpsn: data.sellerPpsn || "" 
+            };
         }
-        return null;
-    },
+    } catch (e) {
+        console.error(`無法獲取商品 [${itemName}] 的商城詳情:`, e);
+    }
+    return null;
+},
 
     /**
      * 將 5 碼 ID 轉換為系統用的 PPSN

@@ -3,72 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSW Extractor - 管理控制台</title>
+    <title>MSW 裝備提取管理器</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* 額外的頁面特定樣式 */
+        /* 這裡可以放一些簡單的頁面微調 */
         .status-bar {
-            margin-top: 10px;
             padding: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-            display: none;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none; /* 預設隱藏 */
         }
-        .status-error { background: rgba(231, 76, 60, 0.2); color: #ff4757; display: block; }
-        .status-success { background: rgba(46, 204, 113, 0.2); color: #2ecc71; display: block; }
+        .status-success { background: #1e3a2f; color: #4ade80; display: block; }
+        .status-error { background: #451a1a; color: #f87171; display: block; }
+        
+        .item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .item-card {
+            background: #252529;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        .thumb-container img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+        }
+        .ruid-text {
+            font-family: monospace;
+            font-size: 11px;
+            color: #aaa;
+            margin: 5px 0;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header style="margin-bottom: 30px;">
-        <h1>MSW 裝備管理器</h1>
+        <h1>👕 MSW 裝備提取管理器</h1>
+        <p style="color: #888;">輸入玩家 Profile Code (#後5碼) 或完整 PPSN</p>
     </header>
 
-    <div class="grid-layout" style="display: grid; grid-template-columns: 1fr 350px; gap: 20px;">
-        
-        <main>
-            <div class="panel">
+    <div class="main-layout">
+        <div class="content-area">
+            <div class="card search-box">
                 <h3>🔍 玩家搜尋</h3>
-                <div class="flex">
-                    <input type="text" id="target_ppsn" placeholder="請輸入玩家 PPSN (例如: 203721000...)" style="flex-grow: 1;">
-                    <button onclick="fetchPlayerEquips()">開始掃描</button>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="target_input" placeholder="例如: 60531 或 203721..." style="flex: 1;">
+                    <button id="btn_search" class="btn-primary">開始掃描</button>
                 </div>
-                <div id="fetch-status" class="status-bar"></div>
             </div>
 
-            <div class="panel">
+            <div id="fetch-status" class="status-bar"></div>
+
+            <div class="card result-box">
                 <h3>📦 穿戴中的裝備</h3>
-                <div id="equip_list" class="equip-grid">
-                    <p style="color: var(--text-secondary); text-align: center; grid-column: 1/-1; padding: 40px;">
-                        請在上方輸入 PPSN 並點擊掃描來獲取資料
-                    </p>
+                <div id="equip_list" class="item-grid">
+                    <p style="color: #666; grid-column: 1/-1; text-align: center;">請在上方輸入 ID 並點擊掃描獲取資料</p>
                 </div>
             </div>
-        </main>
+        </div>
 
-        <aside>
-            <div class="panel">
+        <div class="side-panel">
+            <div class="card">
                 <h3>🔑 憑證設定</h3>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <label style="font-size: 12px; color: var(--text-secondary);">Access Token</label>
-                    <input type="password" id="msw_token" placeholder="輸入 token">
-                    
-                    <label style="font-size: 12px; color: var(--text-secondary);">User ID</label>
-                    <input type="text" id="msw_user_id" placeholder="輸入 user_id">
-                    
-                    <div class="mt-20" style="display: flex; flex-direction: column; gap: 10px;">
-                        <button onclick="handleManualSave()">💾 儲存憑證</button>
-                    </div>
+                <div class="form-group">
+                    <label>Access Token</label>
+                    <input type="password" id="token_input" placeholder="貼上你的 Token">
                 </div>
+                <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" id="userid_input" placeholder="貼上你的 User ID">
+                </div>
+                <button id="btn_save_manual" class="btn-secondary" style="width: 100%; margin-bottom: 10px;">💾 手動儲存憑證</button>
+                <button id="btn_import_json" class="btn-success" style="width: 100%;">📥 匯入 Token JSON</button>
+                <input type="file" id="file_selector" style="display: none;" accept=".json">
             </div>
 
-            <div class="panel">
+            <div class="card">
                 <h3>👥 已儲存帳號</h3>
-                <div id="saved-accounts-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <div id="saved_accounts_list">
                     </div>
             </div>
-        </aside>
+        </div>
     </div>
 </div>
 
@@ -76,89 +101,44 @@
 <script src="js/nexon_api.js"></script>
 
 <script>
-    // 初始化頁面
-    window.onload = () => {
-        const current = AccountManager.getCurrentAccount();
-        if (current) {
-            document.getElementById('msw_token').value = current.token;
-            document.getElementById('msw_user_id').value = current.userId;
-        }
-        renderSavedAccounts();
-    };
+    // 綁定搜尋按鈕
+    document.getElementById('btn_search').addEventListener('click', fetchPlayerEquips);
 
-    // 處理手動儲存
-    function handleManualSave() {
-        const token = document.getElementById('msw_token').value.trim();
-        const userId = document.getElementById('msw_user_id').value.trim();
-        if (AccountManager.saveAccount(userId, token, "手動設定")) {
-            alert("憑證已儲存！");
-            location.reload();
-        }
-    }
-
-    // 匯入由 Python 腳本產生的 JSON
-    function importTokenJson(input) {
-        const file = input.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                if (data.token && data.user_id) {
-                    AccountManager.saveAccount(data.user_id, data.token, "自動助手匯入");
-                    alert("✅ 憑證自動匯入成功！");
-                    location.reload();
-                }
-            } catch (err) {
-                alert("❌ JSON 格式解析失敗");
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    // 渲染帳號列表
-    function renderSavedAccounts() {
-        const accounts = AccountManager.getAccounts();
-        const list = document.getElementById('saved-accounts-list');
-        const currentId = localStorage.getItem('msw_current_user_id');
-
-        if (accounts.length === 0) {
-            list.innerHTML = '<p style="font-size:12px; color:#666;">尚未儲存任何帳號</p>';
-            return;
-        }
-
-        list.innerHTML = accounts.map(acc => `
-            <div style="padding: 10px; background: ${acc.userId === currentId ? 'var(--bg-input)' : 'transparent'}; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" 
-                 onclick="AccountManager.setCurrentAccount('${acc.userId}'); location.reload();">
-                <div style="font-size: 13px; font-weight: bold;">${acc.nickname}</div>
-                <div style="font-size: 10px; color: #666;">${acc.userId.substring(0, 15)}...</div>
-            </div>
-        `).join('');
-    }
-
-    // 執行掃描裝備
+    // 處理搜尋與轉換邏輯
     async function fetchPlayerEquips() {
-        const ppsn = document.getElementById('target_ppsn').value.trim();
+        let inputVal = document.getElementById('target_input').value.trim();
         const statusBox = document.getElementById('fetch-status');
         const grid = document.getElementById('equip_list');
 
-        if (!ppsn) return alert("請輸入目標玩家的 PPSN");
+        if (!inputVal) return alert("請輸入 ID 或 PPSN");
 
-        statusBox.className = "status-bar";
-        statusBox.innerText = "⏳ 正在與伺服器通訊...";
-        statusBox.classList.add("status-success");
+        // 顯示載入狀態
+        statusBox.className = "status-bar status-success";
+        statusBox.innerText = "⏳ 正在處理中...";
+        grid.innerHTML = "";
 
         try {
-            const items = await NexonAPI.getEquipList(ppsn);
-            grid.innerHTML = "";
+            let finalPpsn = inputVal;
+
+            // --- 自動轉換邏輯 (5 碼處理) ---
+            if (inputVal.length === 5 && !isNaN(inputVal)) {
+                statusBox.innerText = `🔍 正在轉換 5 碼 ID: #${inputVal}...`;
+                const playerData = await NexonAPI.getPpsnByCode(inputVal);
+                finalPpsn = playerData.ppsn;
+                statusBox.innerText = `✨ 找到玩家: ${playerData.profileName}，正在抓取裝備...`;
+            }
+
+            // 執行提取裝備
+            const items = await NexonAPI.getEquipList(finalPpsn);
 
             if (items.length === 0) {
                 statusBox.className = "status-bar status-error";
-                statusBox.innerText = "ℹ️ 該玩家目前沒有穿戴可提取的造型裝備";
+                statusBox.innerText = "ℹ️ 找不到該玩家或其未穿戴造型裝備";
+                grid.innerHTML = '<p style="color: #666; grid-column: 1/-1; text-align: center;">無穿戴資料</p>';
                 return;
             }
 
+            // 渲染結果卡片
             items.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'item-card';
@@ -167,12 +147,9 @@
                         <img src="${item.itemThumbnailUrl}" alt="icon">
                     </div>
                     <div class="item-info">
-                        <span class="item-type-tag">${item.avatarType}</span>
+                        <span style="font-size: 10px; color: #4ade80;">${item.avatarType}</span>
                         <div class="ruid-text">${item.ruid}</div>
-                        <button onclick="navigator.clipboard.writeText('${item.ruid}'); alert('已複製 RUID')" 
-                                style="width: 100%; font-size: 10px; padding: 5px; margin-top: 10px;">
-                            複製 RUID
-                        </button>
+                        <button onclick="copyToClipboard('${item.ruid}')" style="font-size: 10px; cursor: pointer; padding: 2px 5px;">複製 RUID</button>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -183,13 +160,43 @@
 
         } catch (err) {
             statusBox.className = "status-bar status-error";
-            if (err.message === "UNAUTHORIZED") {
-                statusBox.innerText = "❌ 憑證無效 (401)，請重新匯入 Token";
-            } else {
-                statusBox.innerText = "❌ 請求失敗: " + err.message;
-            }
+            statusBox.innerText = "❌ 錯誤: " + (err.message === "UNAUTHORIZED" ? "憑證過期，請更新 Token" : err.message);
         }
     }
+
+    // 複製功能
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("RUID 已複製到剪貼簿");
+        });
+    }
+
+    // 憑證匯入與儲存邏輯 (對接 account_manager.js)
+    document.getElementById('btn_import_json').onclick = () => document.getElementById('file_selector').click();
+    
+    document.getElementById('file_selector').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const data = JSON.parse(event.target.result);
+            AccountManager.saveAccount(data.user_id, data.token);
+            location.reload(); // 重新整理載入新帳號
+        };
+        reader.readAsText(file);
+    };
+
+    document.getElementById('btn_save_manual').onclick = () => {
+        const token = document.getElementById('token_input').value.trim();
+        const userid = document.getElementById('userid_input').value.trim();
+        if (token && userid) {
+            AccountManager.saveAccount(userid, token);
+            alert("憑證已手動儲存");
+            location.reload();
+        } else {
+            alert("請填寫完整的 Token 與 User ID");
+        }
+    };
 </script>
 
 </body>

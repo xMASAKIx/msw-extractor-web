@@ -154,84 +154,84 @@
     };
 
     // 同步 GitHub 函數保持不變
-    async function sync(btn, itemData) {
-    const originalText = btn.innerText;
-    btn.innerText = "⏳ 同步中...";
-    btn.disabled = true;
-
-    try {
-        const config = JSON.parse(localStorage.getItem('github_config') || '{}');
-        const { token, owner, repo, path } = config;
-
-        // 1. 獲取現有的檔案內容
-        const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-        const res = await fetch(getUrl, {
-            headers: { "Authorization": `token ${token}` }
-        });
-
-        let sha = "";
-        let currentItems = [];
-        
-        if (res.ok) {
-            const fileData = await res.json();
-            sha = fileData.sha;
-            // 安全解碼 UTF-8 Base64，解決 atob 報錯
-            const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
-            currentItems = JSON.parse(decodedContent);
+        async function sync(btn, itemData) {
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ 同步中...";
+        btn.disabled = true;
+    
+        try {
+            const config = JSON.parse(localStorage.getItem('github_config') || '{}');
+            const { token, owner, repo, path } = config;
+    
+            // 1. 獲取現有的檔案內容
+            const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+            const res = await fetch(getUrl, {
+                headers: { "Authorization": `token ${token}` }
+            });
+    
+            let sha = "";
+            let currentItems = [];
+            
+            if (res.ok) {
+                const fileData = await res.json();
+                sha = fileData.sha;
+                // 安全解碼 UTF-8 Base64，解決 atob 報錯
+                const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+                currentItems = JSON.parse(decodedContent);
+            }
+    
+            // 2. 依照你要求的格式整理新資料
+            const newData = {
+                "id": itemData.itemId,
+                "img": itemData.img,
+                "keyword": itemData.name,
+                "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
+            };
+    
+            // 3. 加入新資料 (若 ID 重複則更新，不重複則新增)
+            const existsIndex = currentItems.findIndex(i => i.id === newData.id);
+            if (existsIndex > -1) {
+                currentItems[existsIndex] = newData;
+            } else {
+                currentItems.push(newData);
+            }
+    
+            // 4. 將 JSON 轉換為 UTF-8 安全的 Base64 編碼
+            const jsonString = JSON.stringify(currentItems, null, 2);
+            const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
+    
+            // 5. 推送到 GitHub
+            const putRes = await fetch(getUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: `Update item: ${newData.keyword}`,
+                    content: encodedContent,
+                    sha: sha
+                })
+            });
+    
+            if (putRes.ok) {
+                btn.innerText = "✅ 同步成功";
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.disabled = false; 
+                }, 2000);
+            } else {
+                const errorInfo = await putRes.json();
+                throw new Error(errorInfo.message || "GitHub 回傳錯誤");
+            }
+    
+        } catch (err) {
+            alert("❌ 同步失敗: " + err.message);
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
-
-        // 2. 依照你要求的格式整理新資料
-        const newData = {
-            "id": itemData.itemId,
-            "img": itemData.img,
-            "keyword": itemData.name,
-            "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
-        };
-
-        // 3. 加入新資料 (若 ID 重複則更新，不重複則新增)
-        const existsIndex = currentItems.findIndex(i => i.id === newData.id);
-        if (existsIndex > -1) {
-            currentItems[existsIndex] = newData;
-        } else {
-            currentItems.push(newData);
-        }
-
-        // 4. 將 JSON 轉換為 UTF-8 安全的 Base64 編碼
-        const jsonString = JSON.stringify(currentItems, null, 2);
-        const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
-
-        // 5. 推送到 GitHub
-        const putRes = await fetch(getUrl, {
-            method: "PUT",
-            headers: {
-                "Authorization": `token ${token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                message: `Update item: ${newData.keyword}`,
-                content: encodedContent,
-                sha: sha
-            })
-        });
-
-        if (putRes.ok) {
-            btn.innerText = "✅ 同步成功";
-            setTimeout(() => { 
-                btn.innerText = originalText; 
-                btn.disabled = false; 
-            }, 2000);
-        } else {
-            const errorInfo = await putRes.json();
-            throw new Error(errorInfo.message || "GitHub 回傳錯誤");
-        }
-
-    } catch (err) {
-        alert("❌ 同步失敗: " + err.message);
-        btn.innerText = originalText;
-        btn.disabled = false;
     }
-}
-
+};
     document.getElementById('btn_save').onclick = () => {
         const t = document.getElementById('token_input').value.trim();
         const u = document.getElementById('userid_input').value.trim();

@@ -63,6 +63,7 @@
 </div>
 
 <script src="nexon_api.js"></script>
+
 <script>
     const GITHUB_CONFIG = {
         token: "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",
@@ -79,6 +80,12 @@
     }
 
     document.getElementById('btn_search').onclick = async function() {
+        // 核心檢查：確保 nexon_api.js 有正確載入
+        if (typeof window.NexonAPI === 'undefined') {
+            alert("❌ 錯誤：找不到 NexonAPI 模組。請確認 nexon_api.js 是否與此 HTML 放在同個資料夾，且內部有執行 window.NexonAPI = NexonAPI;");
+            return;
+        }
+
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
@@ -89,16 +96,21 @@
         grid.innerHTML = "";
 
         try {
-            // 呼叫外部 nexon_api.js 的方法
+            // 呼叫 API 抓取清單
             const rawItems = await window.NexonAPI.getEquipList(input);
             
+            if (!rawItems || rawItems.length === 0) {
+                status.innerText = "⚠️ 找不到穿戴中的裝備或該玩家不存在。";
+                return;
+            }
+            
             for (let item of rawItems) {
-                status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
+                status.innerText = `⏳ 正在校對商城資料: ${item.itemName}...`;
                 
-                // 獲取真實價格與網址
+                // 獲取真實價格與詳細資料
                 const realData = await window.NexonAPI.getRealProductDetail(item.itemName);
                 
-                // 價格處理邏輯
+                // 價格處理 (相容 Godot 顯示邏輯)
                 let rawPrice = realData ? realData.price : -1;
                 let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
                 let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
@@ -115,7 +127,7 @@
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}"></div>
+                    <div class="thumb-box"><img src="${displayData.img}" onerror="this.src='https://via.placeholder.com/140?text=No+Image'"></div>
                     <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
                     <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
                     <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
@@ -135,10 +147,10 @@
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 掃描完成，已校對商城資料`;
+            status.innerText = `✅ 掃描與價格校對完成`;
         } catch (err) {
             status.innerText = "❌ 錯誤: " + err.message;
-            console.error(err);
+            console.error("搜尋過程出錯:", err);
         }
     };
 
@@ -149,15 +161,17 @@
         try {
             const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
             const res = await fetch(url, { headers: { "Authorization": `token ${GITHUB_CONFIG.token}` } });
+            if (!res.ok) throw new Error("無法獲取 GitHub 檔案資訊");
             const json = await res.json();
             
-            // 處理 UTF-8 編碼的 Base64 內容
+            // 處理 UTF-8 編碼
             const list = JSON.parse(decodeURIComponent(escape(atob(json.content))));
 
             if (list.some(i => String(i.id) === String(data.itemId))) {
-                throw new Error("此商品 ID 已存在於資料庫中");
+                throw new Error("此商品 ID 已存在於資料庫中，無需重複同步");
             }
 
+            // 依照 JSON 格式要求推入新數據
             list.push({
                 "keyword": data.name,
                 "wc": data.price === "未知" ? "未知" : data.price + "wc",
@@ -172,18 +186,18 @@
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    message: `Add: ${data.name} (via Admin Tool)`,
+                    message: `Add: ${data.name} (Admin sync)`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
                     sha: json.sha
                 })
             });
 
-            if (!updateRes.ok) throw new Error("GitHub 更新失敗");
+            if (!updateRes.ok) throw new Error("GitHub 更新失敗，請檢查 Token 權限");
             
             btn.innerText = "✅ 同步成功";
             btn.style.background = "#059669";
         } catch (err) {
-            alert(err.message);
+            alert("同步失敗: " + err.message);
             btn.innerText = "🚀 同步失敗";
             btn.disabled = false;
         }
@@ -194,10 +208,10 @@
         const u = document.getElementById('userid_input').value.trim();
         if (t && u) {
             localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: u, token: t}]));
-            alert("憑證已儲存並刷新頁面！");
+            alert("憑證已儲存！頁面即將重新整理以應用設定。");
             location.reload();
         } else {
-            alert("請填寫完整的憑證資料");
+            alert("請務必填寫 AccessToken 與 UserId");
         }
     };
 </script>

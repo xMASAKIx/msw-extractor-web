@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MSW 裝備提取管理器 Pro</title>
+    <title>MSW 裝備管理器 Pro</title>
     <script src="js/nexon_api.js"></script>
     <style>
         /* ... 保持你原本的 CSS 不變 ... */
@@ -124,6 +124,9 @@
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
+                    <div class="info-row">
+							<span class="label">🖼️ 圖片網址</span>
+							<a href="${item.itemThumbnailUrl}" target="_blank" class="url-link">${item.itemThumbnailUrl}</a>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 

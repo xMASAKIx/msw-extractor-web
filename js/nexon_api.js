@@ -1,6 +1,3 @@
-/**
- * MSW Nexon API 核心模組 - 5碼ID修復版
- */
 const NexonAPI = {
     getHeaders: () => {
         const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
@@ -15,14 +12,14 @@ const NexonAPI = {
     },
 
     async proxyFetch(url, isProfile = false) {
-        // 只有非 Profile API 才強制加上 & 參數，避免某些 API 不支援多餘參數而報錯
         let finalUrl = url;
+        // 只有非 Profile API 才加隨機參數，避免特定 API 報錯
         if (!isProfile) {
             const separator = url.includes('?') ? '&' : '?';
-            const cacheBuster = `${separator}_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
-            finalUrl = url + cacheBuster;
+            finalUrl = url + `${separator}_cb=${Date.now()}`;
         }
         
+        // 切換至 corsproxy.io 以解決截圖中的 Preflight CORS 錯誤
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
         try {
@@ -30,7 +27,6 @@ const NexonAPI = {
                 headers: this.getHeaders(),
                 cache: 'no-store' 
             });
-            
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         } catch (e) {
@@ -49,7 +45,7 @@ const NexonAPI = {
                 return {
                     price: d.itemPrice ?? d.targetPrice ?? 0,
                     sellerPpsn: d.sellerPpsn || "N/A",
-                    nickname: d.nickname || d.profileName || "未知",
+                    nickname: d.nickname || "未知",
                     itemId: d.itemId || d.id
                 };
             }
@@ -58,43 +54,21 @@ const NexonAPI = {
     },
 
     async getPpsnByCode(profileCode) {
-        // 修正：針對 Profile API 使用專用的請求標記
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-        try {
-            const json = await this.proxyFetch(url, true);
-            if (json?.data?.ppsn) {
-                console.log(`解析成功: ${profileCode} -> ${json.data.ppsn}`);
-                return json.data.ppsn;
-            }
-            throw new Error("API 未回傳 PPSN 資料");
-        } catch (e) {
-            console.error("5碼ID轉換失敗:", e);
-            throw new Error("找不到該玩家，請確認 5 碼 ID 是否正確");
-        }
+        const json = await this.proxyFetch(url, true);
+        if (json?.data?.ppsn) return json.data.ppsn;
+        throw new Error("找不到該玩家");
     },
 
-// 在 nexon_api.js 中優化後的邏輯範例
-    async getEquipListExtended(input) {
-    let ppsn = input.trim();
-    if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
+    async getEquipList(input) {
+        let ppsn = input.trim();
+        if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
 
-    const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-    const json = await this.proxyFetch(url);
-    
-    const items = (json?.data?.items || []);
-    
-    // 自動針對每個裝備搜尋真實價格與 PPSN
-    const enrichedItems = await Promise.all(items.map(async (item) => {
-        const detail = await this.getRealProductDetail(item.itemName);
-        return {
-            ...item,
-            realPrice: detail ? detail.price : "未知",
-            realSellerPpsn: detail ? detail.sellerPpsn : "未上架",
-            realNickname: detail ? detail.nickname : "未知"
-        };
-    }));
-
-    return enrichedItems;
+        const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+        const json = await this.proxyFetch(url);
+        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
+        return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+    }
 };
 
 window.NexonAPI = NexonAPI;

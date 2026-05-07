@@ -70,7 +70,6 @@ const NexonAPI = {
         }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-        const json = await this.proxyFetch(url);
         
         // 裝備過濾清單
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];

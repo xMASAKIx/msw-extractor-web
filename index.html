@@ -37,7 +37,7 @@
 <body>
 
 <div class="container">
-    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器 Pro</h1></header>
+    <header><h1 style="color: #4ade80;">👕 MSW 裝備管理器 Pro</h1></header>
 
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
@@ -127,9 +127,9 @@
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}" onerror="this.src='https://via.placeholder.com/140?text=No+Image'"></div>
-                    <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
+                    <div class="thumb-box"><img src="${displayData.img}" onerror="this.src='https://via.placeholder.com/140?text=No+Image'"></div>                    
                     <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
+                    <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
                     <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
                     <div class="info-row">
                         <div class="info-label">🆔 商品 ID</div>

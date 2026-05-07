@@ -103,8 +103,10 @@
                 priceUnit: realData ? "wc" : "",
                 itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                 img: item.itemImageUrl || item.itemThumbnailUrl,
-                authorDisplay: realData ? realData.authorInfo : "未上架", // 顯示 暱稱#ID
-                sellerPpsn: realData ? realData.sellerPpsn : "未上架"    // 同步 GitHub 仍建議用 PPSN
+                authorDisplay: realData 
+                ? `${realData.nickname || '未知'}#${realData.profileCode || ''}` 
+                : "未上架",
+                sellerPpsn: realData ? realData.sellerPpsn : "未上架"
             };
 
             const card = document.createElement('div');

@@ -137,13 +137,18 @@
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ %S 價格校對完成`;
+            status.innerText = `✅ 價格校對完成`;
         } catch (err) {
             status.innerText = "❌ 錯誤: " + err.message;
         }

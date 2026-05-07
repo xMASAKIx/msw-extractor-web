@@ -1,5 +1,5 @@
 /**
- * MSW Nexon API 核心模組 - 價格校對強化版
+ * MSW Nexon API 核心模組 - 最終穩定優化版 (支援 Godot 價格校對)
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -18,33 +18,42 @@ const NexonAPI = {
     },
 
     async proxyFetch(url) {
-        // 使用 allorigins 作為更穩定的 CORS 代理
+        // 使用 AllOrigins 繞過 CORS 限制，這對 GitHub Pages 最穩定
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, { headers: this.getHeaders() });
         
-        if (response.status === 401) throw new Error("憑證已失效，請重新儲存憑證");
-        
-        const json = await response.json();
-        if (json.code !== undefined && json.code !== 0) {
-            console.warn(`Nexon API 異常代碼: ${json.code}`, json.message);
+        try {
+            const response = await fetch(proxyUrl, { headers: this.getHeaders() });
+            
+            if (response.status === 401) throw new Error("憑證已失效，請重新儲存憑證");
+            if (!response.ok) throw new Error(`網路請求失敗: ${response.status}`);
+            
+            const json = await response.json();
+            
+            // 處理 Nexon 內部的錯誤代碼
+            if (json.code !== undefined && json.code !== 0) {
+                console.warn(`Nexon API 異常 [${json.code}]: ${json.message}`);
+            }
+            return json;
+        } catch (e) {
+            console.error("Proxy Fetch Error:", e);
+            throw e;
         }
-        return json;
     },
 
     /**
-     * 核心強化：獲取真實當前價格
-     * 優先順序：商城搜尋名稱 > 直接請求商品 ID 詳細資料 (Godot 邏輯)
+     * 核心校對：獲取真實商城價格
+     * 邏輯：搜尋名稱 (最新掛單) -> 若無則直接查商品 ID (Godot 預購邏輯)
      */
     async getRealProductDetail(itemName, fallbackItemId) {
         try {
-            // 方法 A：透過名稱搜尋當前掛單
+            // A. 優先嘗試名稱搜尋 (抓取最新掛單價格)
             const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
             const res = await this.proxyFetch(searchUrl);
             const items = res.data?.items || res.list || [];
             
             if (items.length > 0) {
                 const data = items[0];
-                // 如果抓到的名稱完全符合，則返回該掛單價格
+                // 檢查名稱是否相符，或是搜尋結果唯一
                 if (data.itemName === itemName || items.length === 1) {
                     return {
                         price: data.targetPrice || data.itemPrice || 0,
@@ -55,8 +64,9 @@ const NexonAPI = {
                 }
             }
 
-            // 方法 B：如果搜尋不到掛單，使用 Godot 預購邏輯，直接由商品 ID 查詢
-            if (fallbackItemId && fallbackItemId !== "N/A" && fallbackItemId.length > 5) {
+            // B. 若搜尋不到掛單 (通常是未在架上或名稱太短)，使用 Godot 邏輯直接查 ID
+            // 注意：ruid 通常不適用此接口，必須是真正的 itemId (數字串)
+            if (fallbackItemId && fallbackItemId !== "N/A" && /^\d+$/.test(fallbackItemId)) {
                 const detailUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${fallbackItemId}`;
                 const detailRes = await this.proxyFetch(detailUrl);
                 if (detailRes.data) {
@@ -70,16 +80,16 @@ const NexonAPI = {
                 }
             }
         } catch (e) {
-            console.error(`校對 [${itemName}] 價格時出錯:`, e);
+            console.error(`[${itemName}] 價格校對失敗:`, e);
         }
-        return null;
+        return null; // 回傳 null 讓前端顯示「未知」
     },
 
     async getPpsnByCode(profileCode) {
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
         const json = await this.proxyFetch(url);
         if (json.data && json.data.ppsn) return json.data.ppsn;
-        throw new Error("找不到玩家 PPSN");
+        throw new Error("找不到玩家資訊，請確認 5 碼 ID 是否正確");
     },
 
     async getEquipList(input) {
@@ -91,6 +101,7 @@ const NexonAPI = {
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
         
+        // 過濾我們感興趣的部位
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
         const rawItems = (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
 
@@ -98,10 +109,12 @@ const NexonAPI = {
 
         return rawItems.map(item => ({
             itemName: item.itemName,
+            // 優先儲存 itemId，若無則儲存 ruid
             itemId: item.itemId || item.ruid || "N/A", 
             itemImageUrl: item.itemImageUrl || item.itemThumbnailUrl || ""
         }));
     }
 };
 
+// 確保掛載到全域
 window.NexonAPI = NexonAPI;

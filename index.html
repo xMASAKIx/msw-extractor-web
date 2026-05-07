@@ -6,79 +6,50 @@
     <title>MSW 裝備提取管理器</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* 修正畫面跑掉的樣式 */
-        body { background-color: #0f0f12; color: white; font-family: sans-serif; line-height: 1.6; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        body { background-color: #0f0f12; color: white; font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
         .card { background: #1a1a1e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; }
-        
-        /* 搜尋欄樣式 */
-        .search-group { display: flex; gap: 10px; margin-top: 10px; }
-        input { background: #252529; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; flex: 1; }
-        button { cursor: pointer; border: none; border-radius: 6px; padding: 10px 20px; font-weight: bold; transition: 0.2s; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        
-        /* 狀態條 */
-        #fetch-status { padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; display: none; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        input { background: #252529; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; border: none; border-radius: 6px; padding: 12px; font-weight: bold; width: 100%; transition: 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; margin-top: 10px; }
+        .btn-save { background: #4ade80; color: #064e3b; margin-top: 10px; }
+        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 15px; }
+        #fetch-status { padding: 10px; border-radius: 6px; margin: 10px 0; display: none; font-size: 14px; }
         .status-error { background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid #f87171; display: block; }
         .status-success { background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; display: block; }
-
-        /* 裝備網格 */
-        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
-        .item-card { background: #252529; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #333; }
-        .item-card img { width: 64px; height: 64px; margin-bottom: 10px; }
-        .ruid-label { font-size: 10px; color: #888; word-break: break-all; margin-bottom: 8px; display: block; font-family: monospace; }
-        
-        /* 憑證區域單欄化 */
-        .setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .setting-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header>
-        <h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1>
-        <p style="color: #888;">輸入 Profile Code (#後5碼) 自動轉換並提取裝備</p>
-    </header>
+    <h1 style="color: #4ade80; text-align: center;">👕 MSW 提取工具</h1>
+
+    <div class="card">
+        <h3>🔑 憑證設定 (手動輸入)</h3>
+        <div class="form-group">
+            <label>Access Token</label>
+            <input type="password" id="token_input" placeholder="貼上 mod-accesstoken">
+        </div>
+        <div class="form-group">
+            <label>User ID (隨便取個名子也可以)</label>
+            <input type="text" id="userid_input" placeholder="例如: MyAccount">
+        </div>
+        <button id="btn_save_manual" class="btn-save">💾 儲存憑證到瀏覽器</button>
+        <div id="save-msg" style="text-align: center; margin-top: 10px; font-size: 12px;"></div>
+    </div>
 
     <div class="card">
         <h3>🔍 玩家搜尋</h3>
-        <div class="search-group">
-            <input type="text" id="target_input" placeholder="輸入例如: bpt0p 或 完整PPSN">
-            <button id="btn_search" class="btn-primary">開始掃描</button>
-        </div>
+        <input type="text" id="target_input" placeholder="輸入 #後5碼 (例如: 60531) 或 17碼 PPSN">
+        <button id="btn_search" class="btn-primary">開始掃描裝備</button>
         <div id="fetch-status"></div>
     </div>
 
     <div class="card">
         <h3>📦 穿戴中的裝備</h3>
-        <div id="equip_list" class="item-grid">
-            <p style="color: #666; grid-column: 1/-1; text-align: center; padding: 40px;">等待輸入中...</p>
-        </div>
-    </div>
-
-    <div class="setting-grid">
-        <div class="card">
-            <h3>🔑 憑證設定</h3>
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; color: #aaa;">Access Token</label>
-                <input type="password" id="token_input" style="width: 100%; box-sizing: border-box;">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 12px; color: #aaa;">User ID (可不填)</label>
-                <input type="text" id="userid_input" style="width: 100%; box-sizing: border-box;">
-            </div>
-            <button id="btn_save_manual" style="width: 100%; background: #444; color: white; margin-bottom: 8px;">儲存憑證</button>
-            <button id="btn_import_json" style="width: 100%; background: #059669; color: white;">匯入 Token JSON</button>
-            <input type="file" id="file_selector" style="display: none;" accept=".json">
-        </div>
-
-        <div class="card">
-            <h3>👥 已儲存帳號</h3>
-            <div id="saved_accounts_list" style="font-size: 13px; color: #ccc;">
-                </div>
-        </div>
+        <div id="equip_list" class="item-grid"></div>
     </div>
 </div>
 
@@ -86,81 +57,67 @@
 <script src="js/nexon_api.js"></script>
 
 <script>
-    const btnSearch = document.getElementById('btn_search');
-    const targetInput = document.getElementById('target_input');
-    const statusBox = document.getElementById('fetch-status');
-    const equipGrid = document.getElementById('equip_list');
+    // --- 儲存功能 ---
+    document.getElementById('btn_save_manual').onclick = function() {
+        const token = document.getElementById('token_input').value.trim();
+        const userid = document.getElementById('userid_input').value.trim() || "DefaultUser";
+        const msg = document.getElementById('save-msg');
 
-    btnSearch.onclick = async () => {
-        let input = targetInput.value.trim();
-        if (!input) return;
-
-        // 顯示狀態
-        statusBox.className = "status-success";
-        statusBox.style.display = "block";
-        statusBox.innerText = "⏳ 正在處理請求...";
-        equipGrid.innerHTML = "";
-
-        try {
-            // 1. 如果是 5 碼，自動轉換
-            if (input.length === 5) {
-                statusBox.innerText = `🔍 正在轉換 ID: ${input}...`;
-                const profile = await NexonAPI.getPpsnByCode(input);
-                input = profile.ppsn;
-                statusBox.innerText = `✨ 找到玩家: ${profile.profileName}, 正在抓取裝備...`;
+        if (token) {
+            // 確保 AccountManager 有加載
+            if (typeof AccountManager !== 'undefined') {
+                AccountManager.saveAccount(userid, token);
+                msg.style.color = "#4ade80";
+                msg.innerText = "✅ 儲存成功！請重新整理頁面。";
+                setTimeout(() => location.reload(), 800); 
+            } else {
+                alert("找不到 account_manager.js，請檢查檔案路徑");
             }
-
-            // 2. 獲取裝備
-            const items = await NexonAPI.getEquipList(input);
-
-            if (!items || items.length === 0) {
-                throw new Error("此玩家目前沒穿戴任何造型，或資料無法讀取");
-            }
-
-            // 3. 渲染
-            items.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <img src="${item.itemThumbnailUrl}">
-                    <span style="color: #4ade80; font-size: 11px;">${item.avatarType}</span>
-                    <span class="ruid-label">${item.ruid}</span>
-                    <button onclick="copyRuid('${item.ruid}')" style="width:100%; font-size:11px; padding:4px; background:#333; color:white;">複製 RUID</button>
-                `;
-                equipGrid.appendChild(card);
-            });
-
-            statusBox.innerText = `✅ 成功載入 ${items.length} 件造型`;
-
-        } catch (err) {
-            statusBox.className = "status-error";
-            statusBox.style.display = "block";
-            statusBox.innerText = "❌ 錯誤: " + (err.message === "Failed to fetch" ? "網路請求被攔截 (CORS) 或 Token 失效" : err.message);
+        } else {
+            alert("請輸入 Token");
         }
     };
 
-    function copyRuid(text) {
-        navigator.clipboard.writeText(text);
-        alert("已複製: " + text);
-    }
+    // --- 搜尋功能 ---
+    document.getElementById('btn_search').onclick = async function() {
+        let input = document.getElementById('target_input').value.trim();
+        const status = document.getElementById('fetch-status');
+        const grid = document.getElementById('equip_list');
 
-    // 憑證按鈕邏輯
-    document.getElementById('btn_import_json').onclick = () => document.getElementById('file_selector').click();
-    document.getElementById('file_selector').onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const data = JSON.parse(ev.target.result);
-            AccountManager.saveAccount(data.user_id || "MyAccount", data.token);
-            location.reload();
-        };
-        reader.readAsText(file);
-    };
-    document.getElementById('btn_save_manual').onclick = () => {
-        const t = document.getElementById('token_input').value;
-        const u = document.getElementById('userid_input').value || "ManualSet";
-        if(t) { AccountManager.saveAccount(u, t); location.reload(); }
+        if (!input) return;
+
+        status.className = "status-success";
+        status.innerText = "⏳ 讀取中...";
+        status.style.display = "block";
+        grid.innerHTML = "";
+
+        try {
+            // 自動轉換 5 碼
+            if (input.length === 5 && !isNaN(input)) {
+                const profile = await NexonAPI.getPpsnByCode(input);
+                input = profile.ppsn;
+            }
+
+            const items = await NexonAPI.getEquipList(input);
+            if (items.length === 0) throw new Error("找不到裝備資料");
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.style.cssText = "background:#252529; padding:10px; border-radius:8px; text-align:center; border:1px solid #333;";
+                div.innerHTML = `
+                    <img src="${item.itemThumbnailUrl}" style="width:64px;">
+                    <div style="font-size:10px; color:#aaa; margin:5px 0; word-break:break-all;">${item.ruid}</div>
+                    <button onclick="navigator.clipboard.writeText('${item.ruid}');alert('已複製')" style="padding:5px; font-size:10px; background:#444; color:white;">複製 RUID</button>
+                `;
+                grid.appendChild(div);
+            });
+            status.innerText = `✅ 成功載入 ${items.length} 件裝備`;
+        } catch (err) {
+            status.className = "status-error";
+            status.innerText = "❌ 失敗: " + err.message;
+        }
     };
 </script>
+
 </body>
 </html>

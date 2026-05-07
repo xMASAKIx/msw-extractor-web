@@ -4,102 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MSW 裝備提取管理器</title>
-    <link rel="stylesheet" href="css/style.css">
     <style>
-        /* 基礎樣式與深色主題 */
-        body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+        /* 基礎樣式 */
+        body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
-        h1 { color: #4ade80; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        h1 { color: #4ade80; display: flex; align-items: center; gap: 10px; }
         
-        /* 佈局：左側功能，右側面板 */
         .main-layout { display: grid; grid-template-columns: 1fr 350px; gap: 24px; margin-top: 20px; }
-        .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        h3 { margin-top: 0; font-size: 1.1rem; color: #f4f4f5; display: flex; align-items: center; gap: 8px; }
+        .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 
-        /* 輸入框與按鈕 */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.85rem; color: #a1a1aa; margin-bottom: 6px; }
-        input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; box-sizing: border-box; outline: none; transition: border 0.2s; }
-        input:focus { border-color: #3b82f6; }
-        
-        button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: all 0.2s; }
+        /* 輸入與按鈕 */
+        input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
         .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-save { background: #10b981; color: white; margin-top: 10px; }
-        .btn-save:hover { background: #059669; }
+        .btn-save { background: #10b981; color: white; }
 
-        /* 狀態條 */
-        #fetch-status { padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 0.9rem; display: none; }
-        .status-success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); display: block; }
-        .status-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); display: block; }
-
-        /* 精緻裝備卡片排版 */
-        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
-        .item-card { background: #1c1c21; border-radius: 16px; padding: 16px; border: 1px solid #2d2d35; color: #e4e4e7; transition: transform 0.2s; }
-        .item-card:hover { transform: translateY(-4px); border-color: #3f3f46; }
+        /* 裝備卡片樣式 (對齊 Godot UI 邏輯) */
+        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; position: relative; }
         
-        .thumb-box { background: #111114; border-radius: 12px; height: 160px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
-        .thumb-box img { max-width: 100%; max-height: 120px; image-rendering: pixelated; }
+        .thumb-box { background: #141419; border-radius: 12px; height: 200px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+        .thumb-box img { max-width: 100%; max-height: 160px; image-rendering: pixelated; }
 
-        .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; }
-        .info-label { color: #a1a1aa; display: flex; align-items: center; gap: 8px; }
-        .info-value { color: #ffffff; font-weight: 500; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        .copy-icon { cursor: pointer; color: #fb923c; font-size: 14px; transition: opacity 0.2s; }
-        .copy-icon:hover { opacity: 0.7; }
-        
-        .btn-sync { width: 100%; background: #6366f1; color: white; padding: 10px; border-radius: 8px; margin-top: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; }
+        .price-text { font-size: 26px; color: #66d981; font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
+        .price-unit { font-size: 14px; color: #809980; }
 
-        /* 帳號清單樣式 */
-        .account-item { background: #27272a; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
-        .account-item:hover { border-color: #3b82f6; background: #323238; }
+        .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; }
+        .info-label { color: #808ca6; width: 100px; flex-shrink: 0; }
+        .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        .copy-btn { background: none; color: #fb923c; width: auto; padding: 0 5px; font-size: 16px; }
+        
+        .btn-sync { background: #7359cc; color: white; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-sync:disabled { background: #3f3f46; cursor: not-allowed; }
+
+        #fetch-status { padding: 12px; border-radius: 8px; margin: 10px 0; display: none; }
+        .status-success { background: rgba(16, 185, 129, 0.1); color: #34d399; }
+        .status-error { background: rgba(239, 68, 68, 0.1); color: #f87171; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1><span style="font-size: 2rem;">👕</span> MSW 裝備提取管理器</h1>
-        <p style="color: #71717a; margin-top: -10px; margin-left: 45px;">輸入玩家 Profile Code (#後5碼) 或完整 PPSN</p>
+        <h1>👕 MSW 裝備提取管理器</h1>
     </header>
 
     <div class="main-layout">
         <div class="left-panel">
             <div class="card">
                 <h3>🔍 玩家搜尋</h3>
-                <div style="display: flex; gap: 12px;">
-                    <input type="text" id="target_input" placeholder="例如: bpt0p 或 20372...">
-                    <button id="btn_search" class="btn-primary" style="width: 140px;">開始掃描</button>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="target_input" placeholder="輸入 #後5碼 或 PPSN">
+                    <button id="btn_search" class="btn-primary" style="width: 120px;">掃描</button>
                 </div>
                 <div id="fetch-status"></div>
             </div>
 
-            <div class="card">
-                <h3>📦 穿戴中的裝備</h3>
-                <div id="equip_list" class="item-grid">
-                    <p style="color: #52525b; grid-column: 1/-1; text-align: center; padding: 100px;">等待掃描指令...</p>
+            <div id="equip_list" class="item-grid">
                 </div>
-            </div>
         </div>
 
         <div class="right-panel">
             <div class="card">
-                <h3>🔑 憑證設定</h3>
-                <div class="form-group">
-                    <label>Access Token</label>
-                    <input type="password" id="token_input" placeholder="貼上 mod-accesstoken">
-                </div>
-                <div class="form-group">
-                    <label>User ID (帳號別名)</label>
-                    <input type="text" id="userid_input" placeholder="例如: 主要帳號">
-                </div>
+                <h3>🔑 憑證與 GitHub 設定</h3>
+                <input type="password" id="token_input" placeholder="Nexon Access Token">
+                <input type="text" id="userid_input" placeholder="帳號別名">
                 <button id="btn_save_manual" class="btn-save">💾 儲存憑證</button>
-            </div>
-
-            <div class="card">
-                <h3>👥 已儲存帳號</h3>
-                <div id="saved_accounts_list">
-                    </div>
+                <hr style="border: 0.5px solid #27272a; margin: 20px 0;">
+                <p style="font-size: 12px; color: #a1a1aa;">GitHub Token 已在系統中預設</p>
             </div>
         </div>
     </div>
@@ -109,109 +82,147 @@
 <script src="js/nexon_api.js"></script>
 
 <script>
-    // --- 儲存帳號邏輯 ---
-    document.getElementById('btn_save_manual').onclick = function() {
-        const tokenInput = document.getElementById('token_input');
-        const userInput = document.getElementById('userid_input');
-        const token = tokenInput.value.trim();
-        const userId = userInput.value.trim() || "未命名帳號";
-
-        if (token) {
-            if (typeof AccountManager !== 'undefined') {
-                AccountManager.saveAccount(userId, token);
-                tokenInput.value = "";
-                userInput.value = "";
-                alert(`✅ 帳號「${userId}」已儲存！`);
-                location.reload(); 
-            } else {
-                alert("錯誤：找不到 account_manager.js");
-            }
-        } else {
-            alert("❌ 請輸入 Access Token");
-        }
+    const GITHUB_CONFIG = {
+        token: "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",
+        owner: "xmasakix",
+        repo: "MSW-ID",
+        path: "data.json"
     };
 
-    // --- 搜尋裝備邏輯 (包含精緻排版渲染) ---
     document.getElementById('btn_search').onclick = async function() {
         let input = document.getElementById('target_input').value.trim();
         const statusBox = document.getElementById('fetch-status');
         const grid = document.getElementById('equip_list');
 
         if (!input) return;
-
         statusBox.className = "status-success";
-        statusBox.innerText = "⏳ 正在處理請求...";
+        statusBox.innerText = "⏳ 正在搜尋玩家與抓取裝備...";
         statusBox.style.display = "block";
         grid.innerHTML = "";
 
         try {
-            // 執行掃描 (NexonAPI 會在內部處理 ID 轉換)
             const items = await NexonAPI.getEquipList(input);
-            
-            if (!items || items.length === 0) {
-                statusBox.className = "status-error";
-                statusBox.innerText = "ℹ️ 該玩家目前沒有穿戴可提取的裝備";
-                return;
-            }
+            if (!items || items.length === 0) throw new Error("找不到穿戴中的裝備");
 
-            // 渲染精緻卡片
             items.forEach(item => {
+                // 依照 Godot _update_content 邏輯抓取欄位
+                const itemName = item.itemName || item.name || "未知商品";
+                const price = item.targetPrice || item.itemPrice || 0;
+                const author = item.nickname || item.profileName || item.sellerNickname || item.authorName || "未知";
+                const ruid = item.ruid || item.itemId || item.id || "";
+                const imgUrl = item.itemImageUrl || item.itemThumbnailUrl || "";
+
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box">
-                        <img src="${item.itemThumbnailUrl}" alt="equip">
+                        <img src="${imgUrl}" alt="equip">
                     </div>
+                    <div class="price-text">${price} <span class="price-unit">wc</span></div>
                     
                     <div class="info-row">
                         <div class="info-label">📝 商品名稱</div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span class="info-value">${item.avatarType}</span>
-                            <span class="copy-icon" onclick="copyText('${item.avatarType}')">📋</span>
-                        </div>
+                        <div class="info-value">${itemName}</div>
+                        <button class="copy-btn" onclick="copyText('${itemName}')">📋</button>
                     </div>
-
                     <div class="info-row">
                         <div class="info-label">👤 作者</div>
-                        <div class="info-value">未知</div>
+                        <div class="info-value">${author}</div>
                     </div>
-
                     <div class="info-row">
                         <div class="info-label">🆔 商品 ID</div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span class="info-value" style="font-family:monospace; font-size:12px;">${item.ruid}</span>
-                            <span class="copy-icon" onclick="copyText('${item.ruid}')">📋</span>
-                        </div>
+                        <div class="info-value">${ruid}</div>
+                        <button class="copy-btn" onclick="copyText('${ruid}')">📋</button>
                     </div>
-
                     <div class="info-row">
                         <div class="info-label">🔗 縮圖</div>
-                        <span class="copy-icon" onclick="copyText('${item.itemThumbnailUrl}')">📋</span>
+                        <div class="info-value">${imgUrl}</div>
+                        <button class="copy-btn" onclick="copyText('${imgUrl}')">📋</button>
                     </div>
 
-                    <button class="btn-sync" onclick="syncToGithub('${item.ruid}')">🚀 同步至 GitHub</button>
+                    <button class="btn-sync" onclick="syncToGithub(this, ${JSON.stringify({itemName, price, ruid, imgUrl}).replace(/"/g, '&quot;')})">
+                        🚀 同步至 GitHub
+                    </button>
                 `;
                 grid.appendChild(card);
             });
-
-            statusBox.innerText = `✅ 成功載入 ${items.length} 件裝備資料`;
-
+            statusBox.innerText = `✅ 成功載入 ${items.length} 件裝備`;
         } catch (err) {
             statusBox.className = "status-error";
-            statusBox.innerText = "❌ 失敗: " + err.message;
+            statusBox.innerText = "❌ 錯誤: " + err.message;
         }
     };
 
-    function copyText(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            // 簡單的小提示，不干擾使用者
-            console.log("Copied: " + text);
-        });
+    async function syncToGithub(btn, data) {
+        btn.disabled = true;
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ 同步中...";
+
+        const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
+        
+        try {
+            // 1. 取得現有檔案
+            const res = await fetch(url, {
+                headers: { "Authorization": `token ${GITHUB_CONFIG.token}` }
+            });
+            if (!res.ok) throw new Error("無法讀取 GitHub 檔案");
+            
+            const fileData = await res.json();
+            const currentList = JSON.parse(decodeURIComponent(escape(atob(fileData.content))));
+
+            // 2. 檢查重複
+            if (currentList.some(i => i.id === data.ruid)) {
+                throw new Error("商品已存在於列表");
+            }
+
+            // 3. 準備新條目 (對應 Godot new_entry 結構)
+            const newEntry = {
+                "keyword": data.itemName,
+                "wc": data.price < 0 ? "不限價格" : data.price + "wc",
+                "id": data.ruid,
+                "img": data.imgUrl
+            };
+            currentList.push(newEntry);
+
+            // 4. 上傳更新
+            const updateRes = await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${GITHUB_CONFIG.token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: `Add: ${data.itemName}`,
+                    content: btoa(unescape(encodeURIComponent(JSON.stringify(currentList, null, "\t")))),
+                    sha: fileData.sha
+                })
+            });
+
+            if (!updateRes.ok) throw new Error("上傳 GitHub 失敗");
+
+            btn.innerText = "✅ 同步成功";
+            setTimeout(() => { btn.disabled = false; btn.innerText = originalText; }, 2000);
+
+        } catch (err) {
+            alert("❌ 同步失敗: " + err.message);
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
     }
 
-    function syncToGithub(ruid) {
-        alert("同步功能開發中...\n準備傳送 RUID: " + ruid);
+    function copyText(text) {
+        navigator.clipboard.writeText(text);
+        console.log("Copied:", text);
     }
+
+    document.getElementById('btn_save_manual').onclick = function() {
+        const token = document.getElementById('token_input').value.trim();
+        const userId = document.getElementById('userid_input').value.trim();
+        if (token && typeof AccountManager !== 'undefined') {
+            AccountManager.saveAccount(userId || "未命名", token);
+            alert("憑證已儲存！");
+        }
+    };
 </script>
 
 </body>

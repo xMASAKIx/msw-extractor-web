@@ -156,15 +156,17 @@
         btn.disabled = true;
     
         try {
-            // 注意：這裡如果你在 GITHUB_CONFIG 寫死了，就用 GITHUB_CONFIG，如果要用 localStorage 存的就維持原樣
-            const config = JSON.parse(localStorage.getItem('github_config')) || GITHUB_CONFIG;
-            const { token, owner, repo, path } = config;
+            // 強制直接使用你寫死在程式碼開頭的 GITHUB_CONFIG，不抓 localStorage
+            const { token, owner, repo, path } = GITHUB_CONFIG;
     
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
             const res = await fetch(getUrl, {
                 headers: { "Authorization": `token ${token}` }
             });
     
+            // 如果連獲取 SHA 都失敗，代表 Token 真的有問題
+            if (res.status === 401) throw new Error("GitHub Token 無效或已過期");
+            
             let sha = "";
             let currentItems = [];
             

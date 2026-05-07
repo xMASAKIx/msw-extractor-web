@@ -110,9 +110,7 @@
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>                    
-                    <div class="info-row"><div class="info-label">📝 名稱</div>
-                        <div class="info-value">${displayData.name}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div><button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
                     
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
                     

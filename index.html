@@ -37,7 +37,7 @@
 <body>
 
 <div class="container">
-    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1></header>
+    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器 Pro</h1></header>
 
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
@@ -62,54 +62,8 @@
     </div>
 </div>
 
+<script src="nexon_api.js"></script>
 <script>
-    const NexonAPI = {
-        getHeaders: () => {
-            const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
-            const currentAccount = accounts[0] || { userId: '', token: '' };
-            return {
-                "mod-accesstoken": currentAccount.token,
-                "mod-user-id": currentAccount.userId,
-                "x-mod-client": "727d112f1370415e85686530ec048fb7",
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            };
-        },
-
-        async proxyFetch(url) {
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-            const response = await fetch(proxyUrl, { headers: this.getHeaders() });
-            if (response.status === 401) throw new Error("憑證已失效，請重新儲存");
-            return await response.json();
-        },
-
-        async getPpsnByCode(profileCode) {
-            const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-            const json = await this.proxyFetch(url);
-            if (json.data && json.data.ppsn) return json.data.ppsn;
-            throw new Error("找不到該 ID 對應的玩家");
-        },
-
-        async getRealProductDetail(itemName) {
-            const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
-            try {
-                const res = await this.proxyFetch(searchUrl);
-                const items = res.data?.items || res.list || [];
-                return items.length > 0 ? items[0] : null;
-            } catch (e) { return null; }
-        },
-
-        async getEquipList(input) {
-            let ppsn = input;
-            if (input.length === 5) ppsn = await this.getPpsnByCode(input);
-
-            const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
-            const json = await this.proxyFetch(url);
-            const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
-            return (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
-        }
-    };
-
     const GITHUB_CONFIG = {
         token: "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",
         owner: "xmasakix",
@@ -135,15 +89,17 @@
         grid.innerHTML = "";
 
         try {
-            const rawItems = await NexonAPI.getEquipList(input);
+            // 呼叫外部 nexon_api.js 的方法
+            const rawItems = await window.NexonAPI.getEquipList(input);
             
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
                 
-                const realData = await NexonAPI.getRealProductDetail(item.itemName);
+                // 獲取真實價格與網址
+                const realData = await window.NexonAPI.getRealProductDetail(item.itemName);
                 
-                // 處理價格邏輯：比照 Godot 的 "%d WC" if current_price >= 0 else "未知"
-                let rawPrice = realData ? (realData.targetPrice || realData.itemPrice) : -1;
+                // 價格處理邏輯
+                let rawPrice = realData ? realData.price : -1;
                 let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
                 let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
 
@@ -151,9 +107,9 @@
                     name: item.itemName,
                     price: priceDisplay,
                     priceUnit: priceUnit,
-                    itemId: realData ? (realData.itemId || realData.id) : (item.itemId || "未上架"),
-                    img: item.itemImageUrl || item.itemThumbnailUrl,
-                    author: realData ? (realData.nickname || realData.profileName) : "未知"
+                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                    img: realData ? realData.img : (item.itemImageUrl || item.itemThumbnailUrl),
+                    author: realData ? realData.author : "未知"
                 };
 
                 const card = document.createElement('div');
@@ -182,6 +138,7 @@
             status.innerText = `✅ 掃描完成，已校對商城資料`;
         } catch (err) {
             status.innerText = "❌ 錯誤: " + err.message;
+            console.error(err);
         }
     };
 
@@ -193,9 +150,13 @@
             const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
             const res = await fetch(url, { headers: { "Authorization": `token ${GITHUB_CONFIG.token}` } });
             const json = await res.json();
+            
+            // 處理 UTF-8 編碼的 Base64 內容
             const list = JSON.parse(decodeURIComponent(escape(atob(json.content))));
 
-            if (list.some(i => String(i.id) === String(data.itemId))) throw new Error("ID 已存在");
+            if (list.some(i => String(i.id) === String(data.itemId))) {
+                throw new Error("此商品 ID 已存在於資料庫中");
+            }
 
             list.push({
                 "keyword": data.name,
@@ -204,16 +165,23 @@
                 "img": data.img
             });
 
-            await fetch(url, {
+            const updateRes = await fetch(url, {
                 method: "PUT",
-                headers: { "Authorization": `token ${GITHUB_CONFIG.token}`, "Content-Type": "application/json" },
+                headers: { 
+                    "Authorization": `token ${GITHUB_CONFIG.token}`, 
+                    "Content-Type": "application/json" 
+                },
                 body: JSON.stringify({
-                    message: `Add: ${data.name}`,
+                    message: `Add: ${data.name} (via Admin Tool)`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
                     sha: json.sha
                 })
             });
-            btn.innerText = "✅ 成功";
+
+            if (!updateRes.ok) throw new Error("GitHub 更新失敗");
+            
+            btn.innerText = "✅ 同步成功";
+            btn.style.background = "#059669";
         } catch (err) {
             alert(err.message);
             btn.innerText = "🚀 同步失敗";
@@ -226,8 +194,10 @@
         const u = document.getElementById('userid_input').value.trim();
         if (t && u) {
             localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: u, token: t}]));
-            alert("憑證已更新！");
+            alert("憑證已儲存並刷新頁面！");
             location.reload();
+        } else {
+            alert("請填寫完整的憑證資料");
         }
     };
 </script>

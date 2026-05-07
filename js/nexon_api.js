@@ -35,35 +35,47 @@ const NexonAPI = {
         }
     },
 
+// ... 前面的 getHeaders, proxyFetch 保持不變 ...
+
+    // 新增：透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
+    async getProfileDetail(ppsn) {
+        if (!ppsn || ppsn === "N/A") return null;
+        const url = `https://mverse-api.nexon.com/social/v1/profile/${ppsn}`;
+        const res = await this.proxyFetch(url, true); // 使用 Profile 模式請求
+        return res?.data || null;
+    },
+
     async getRealProductDetail(input) {
-    let url;
-    // 判斷是否為 8 碼商品 ID
-    const isId = /^[A-Z0-9]{8,9}$/.test(input);
+        let url;
+        const isId = /^[A-Z0-9]{8,9}$/.test(input);
 
-    if (isId) {
-        url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
-    } else {
-        url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}`;
-    }
-
-    try {
-        const res = await this.proxyFetch(url);
-        const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0]);
-
-        if (d) {
-            return {
-                price: d.itemPrice ?? d.targetPrice ?? 0,
-                sellerPpsn: d.sellerPpsn || "N/A",
-                nickname: d.nickname || d.profileName || "未知",
-                profileCode: d.profileCode || d.sellerProfileCode || d.authorProfileCode || "", 
-                itemId: d.itemId || d.id || input
-            };
+        if (isId) {
+            url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
+        } else {
+            url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}`;
         }
-    } catch (e) { 
-        console.error("獲取商品詳情失敗", e); 
-    }
-    return null;
-},
+
+        try {
+            const res = await this.proxyFetch(url);
+            const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0]);
+
+            if (d && d.sellerPpsn) {
+                // --- 關鍵修改：拿到 PPSN 後，多跑一個請求去抓 5 碼 ID ---
+                const profile = await this.getProfileDetail(d.sellerPpsn);
+                
+                return {
+                    price: d.itemPrice ?? d.targetPrice ?? 0,
+                    sellerPpsn: d.sellerPpsn,
+                    nickname: profile?.profileName || d.nickname || d.profileName || "未知",
+                    profileCode: profile?.profileCode || d.profileCode || "", 
+                    itemId: d.itemId || d.id || input
+                };
+            }
+        } catch (e) { 
+            console.error("獲取商品詳情失敗", e); 
+        }
+        return null;
+    },
 
     async getPpsnByCode(profileCode) {
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;

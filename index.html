@@ -125,65 +125,77 @@
     }
 
     document.getElementById('btn_search').onclick = async function() {
-        const input = document.getElementById('target_input').value.trim();
-        const status = document.getElementById('status-bar');
-        const grid = document.getElementById('equip_list');
+    const input = document.getElementById('target_input').value.trim();
+    const status = document.getElementById('status-bar');
+    const grid = document.getElementById('equip_list');
 
-        if (!input) return;
-        status.style.display = "block";
-        status.innerText = "⏳ 正在抓取穿戴清單...";
-        grid.innerHTML = "";
+    if (!input) return;
+    status.style.display = "block";
+    status.innerText = "⏳ 正在抓取穿戴清單...";
+    grid.innerHTML = "";
 
-        try {
-            const rawItems = await NexonAPI.getEquipList(input);
+    try {
+        const rawItems = await NexonAPI.getEquipList(input);
+        
+        for (let item of rawItems) {
+            status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
             
-            for (let item of rawItems) {
-                status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
+            const realData = await NexonAPI.getRealProductDetail(item.itemName);
+            
+            // 處理價格邏輯
+            let rawPrice = realData ? (realData.targetPrice || realData.itemPrice) : -1;
+            let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
+            let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
+
+            // --- 新增：取得賣家 PPSN ---
+            let sellerPpsn = realData ? (realData.sellerPpsn || "未知") : "未上架";
+
+            const displayData = {
+                name: item.itemName,
+                price: priceDisplay,
+                priceUnit: priceUnit,
+                itemId: realData ? (realData.itemId || realData.id) : (item.itemId || "未上架"),
+                img: item.itemImageUrl || item.itemThumbnailUrl,
+                author: realData ? (realData.nickname || realData.profileName) : "未知",
+                sellerPpsn: sellerPpsn // <-- 確保這行有加進去
+            };
+
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+                <div class="thumb-box"><img src="${displayData.img}"></div>                    
+                <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
+                <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
+                <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
                 
-                const realData = await NexonAPI.getRealProductDetail(item.itemName);
-                
-                // 處理價格邏輯：比照 Godot 的 "%d WC" if current_price >= 0 else "未知"
-                let rawPrice = realData ? (realData.targetPrice || realData.itemPrice) : -1;
-                let priceDisplay = (rawPrice < 0 || isNaN(rawPrice)) ? "未知" : `${rawPrice}`;
-                let priceUnit = (rawPrice < 0 || isNaN(rawPrice)) ? "" : "wc";
+                <div class="info-row">
+                    <div class="info-label">🆔 作者 ID</div>
+                    <div class="info-value" title="${displayData.sellerPpsn}">${displayData.sellerPpsn}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
+                </div>
 
-                const displayData = {
-                    name: item.itemName,
-                    price: priceDisplay,
-                    priceUnit: priceUnit,
-                    itemId: realData ? (realData.itemId || realData.id) : (item.itemId || "未上架"),
-                    img: item.itemImageUrl || item.itemThumbnailUrl,
-                    author: realData ? (realData.nickname || realData.profileName) : "未知"
-                };
+                <div class="info-row">
+                    <div class="info-label">🆔 商品 ID</div>
+                    <div class="info-value">${displayData.itemId}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">🖼️ 縮圖網址</div>
+                    <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                </div>
+                <button class="btn-sync">🚀 同步至 GitHub</button>
+            `;
 
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}"></div>                    
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
-                    <div class="price-text">${displayData.price} <span class="price-unit">${displayData.priceUnit}</span></div>
-                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
-                `;
-
-                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
-                grid.appendChild(card);
-            }
-            status.innerText = `✅ 掃描完成，已校對商城資料`;
-        } catch (err) {
-            status.innerText = "❌ 錯誤: " + err.message;
+            // 這裡的 displayData 已經包含 sellerPpsn，所以 sync 函數會接收到它
+            card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+            grid.appendChild(card);
         }
-    };
+        status.innerText = `✅ 掃描完成，已校對商城資料`;
+    } catch (err) {
+        status.innerText = "❌ 錯誤: " + err.message;
+    }
+};
 
     async function sync(btn, data) {
         if (data.itemId === "未上架") return alert("此裝備未在商城上架，無法同步 ID");

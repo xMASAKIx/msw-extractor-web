@@ -23,6 +23,7 @@
         .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; }
         .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
         #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
+        h4 { margin: 10px 0 8px 0; color: #808ca6; font-size: 12px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -43,25 +44,41 @@
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
+                
+                <h4>Nexon 帳號</h4>
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
-                <button id="btn_save" class="btn-save">💾 儲存並刷新</button>
+                
+                <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
+                
+                <h4>GitHub 配置</h4>
+                <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
+                <p style="font-size:11px; color:#666; margin-top:-5px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
+                
+                <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+    // 頁面載入邏輯
     window.onload = () => {
         if (typeof NexonAPI === 'undefined') {
             const statusBar = document.getElementById('status-bar');
             statusBar.style.display = 'block';
             statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
         }
+        
+        // 自動填入已儲存的 GitHub Token (隱碼顯示)
+        const savedGhToken = localStorage.getItem('github_token_v1');
+        if (savedGhToken) {
+            document.getElementById('gh_token_input').value = savedGhToken;
+        }
     };
 
+    // GitHub 基礎配置 (不含 Token)
     const GITHUB_CONFIG = {
-        token: "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".trim(),
         owner: "xmasakix",
         repo: "MSW-ID",
         path: "data.json"
@@ -73,6 +90,24 @@
             setTimeout(() => btn.innerText = "📋", 1000);
         });
     }
+
+    // 儲存憑證邏輯
+    document.getElementById('btn_save').onclick = () => {
+        const nToken = document.getElementById('token_input').value.trim();
+        const nUser = document.getElementById('userid_input').value.trim();
+        const gToken = document.getElementById('gh_token_input').value.trim();
+
+        if (nToken && nUser) {
+            localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
+        }
+        
+        if (gToken) {
+            localStorage.setItem('github_token_v1', gToken);
+        }
+
+        alert("所有憑證已更新！");
+        location.reload();
+    };
 
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
@@ -123,16 +158,18 @@
         }
     };
 
+    // 修改後的同步函式
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
     
         try {
-            const { token, owner, repo, path } = GITHUB_CONFIG;
+            // 從 localStorage 獲取 Token
+            const token = localStorage.getItem('github_token_v1');
+            const { owner, repo, path } = GITHUB_CONFIG;
             
-            // 1. 檢查 Token 是否填寫
-            if (!token || token.length < 10) throw new Error("請先在 GITHUB_CONFIG 中填入新的 Token");
+            if (!token) throw new Error("請先在右側「憑證管理」中輸入並儲存 GitHub Token");
     
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
             const commonHeaders = {
@@ -140,33 +177,27 @@
                 "Accept": "application/vnd.github.v3+json"
             };
     
-            // 2. 獲取當前 GitHub 上的檔案內容
             const res = await fetch(getUrl, { headers: commonHeaders });
             
             let sha = "";
             let currentItems = [];
             
-            if (res.status === 401) throw new Error("Token 驗證失敗 (Bad Credentials)，請檢查 Token 是否填錯");
+            if (res.status === 401) throw new Error("GitHub Token 驗證失敗，請檢查 Token 是否輸入正確或已過期");
     
             if (res.ok) {
                 const fileData = await res.json();
                 sha = fileData.sha;
-                // 安全解碼 atob，防止格式錯誤
                 if (fileData.content) {
                     try {
                         const cleanBase64 = fileData.content.replace(/\s/g, '');
                         const decodedContent = decodeURIComponent(escape(atob(cleanBase64)));
                         currentItems = JSON.parse(decodedContent);
                     } catch (e) {
-                        console.warn("檔案格式損毀，將重置為空陣列");
                         currentItems = [];
                     }
                 }
-            } else if (res.status === 404) {
-                console.log("GitHub 上尚未有檔案，將自動建立");
             }
     
-            // 3. 準備新資料 (確保 ID 為字串比對)
             const newData = {
                 "id": String(itemData.itemId),
                 "img": itemData.img,
@@ -174,7 +205,6 @@
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
             };
     
-            // 4. 更新內容：若已存在則覆蓋，不存在則新增
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);
             if (existsIndex > -1) {
                 currentItems[existsIndex] = newData;
@@ -182,7 +212,6 @@
                 currentItems.push(newData);
             }
     
-            // 5. 將結果轉回 Base64 並上傳
             const jsonString = JSON.stringify(currentItems, null, 2);
             const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
     
@@ -204,7 +233,7 @@
                 }, 2000);
             } else {
                 const errData = await putRes.json();
-                throw new Error(errData.message || "上傳至 GitHub 失敗");
+                throw new Error(errData.message || "上傳失敗");
             }
     
         } catch (err) {
@@ -213,16 +242,6 @@
             btn.disabled = false;
         }
     }
-
-    document.getElementById('btn_save').onclick = () => {
-        const t = document.getElementById('token_input').value.trim();
-        const u = document.getElementById('userid_input').value.trim();
-        if (t && u) {
-            localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: u, token: t}]));
-            alert("憑證已更新！");
-            location.reload();
-        }
-    };
 </script>
 </body>
 </html>

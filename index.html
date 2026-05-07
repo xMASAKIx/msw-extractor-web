@@ -56,8 +56,9 @@
     // 檢查 NexonAPI 是否加載成功
     window.onload = () => {
         if (typeof NexonAPI === 'undefined') {
-            document.getElementById('status-bar').style.display = 'block';
-            document.getElementById('status-bar').innerText = "❌ 錯誤：無法載入 js/nexon_api.js，請檢查檔案路徑。";
+            const statusBar = document.getElementById('status-bar');
+            statusBar.style.display = 'block';
+            statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js，請檢查檔案路徑。";
         }
     };
 
@@ -70,12 +71,14 @@
 
     function copy(text, btn) {
         navigator.clipboard.writeText(text).then(() => {
+            const oldText = btn.innerText;
             btn.innerText = "OK";
             setTimeout(() => btn.innerText = "📋", 1000);
         });
     }
 
-    document.getElementById('btn_search').onclick = a function() {
+    // 修正點 1 & 2: 移除多餘的 'a' 並加上 'async'
+    document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         
         const input = document.getElementById('target_input').value.trim();
@@ -88,60 +91,52 @@
         grid.innerHTML = "";
 
         try {
-            // 呼叫外部 nexon_api.js 裡的邏輯
             const rawItems = await NexonAPI.getEquipList(input);
             
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
-            // 在 index.html 的掃描循環中
-            const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
-            
-            const displayData = {
-                name: item.itemName,
-                price: realData ? realData.price : "未知",
-                priceUnit: realData ? "wc" : "",
-                itemId: realData ? realData.itemId : (item.itemId || "未上架"),
-                img: item.itemImageUrl || item.itemThumbnailUrl,
-                // 只有在 profileCode 有值的時候才加上 #
-                authorDisplay: realData 
-                    ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
-                    : "未上架",
-                sellerPpsn: realData ? realData.sellerPpsn : "未上架"
-            };
+                const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
+                
+                const displayData = {
+                    name: item.itemName,
+                    price: realData ? realData.price : "未知",
+                    priceUnit: realData ? "wc" : "",
+                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                    img: item.itemImageUrl || item.itemThumbnailUrl,
+                    authorDisplay: realData 
+                        ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
+                        : "未上架",
+                    sellerPpsn: realData ? realData.sellerPpsn : "未上架"
+                };
 
-            const card = document.createElement('div');
-            card.className = 'item-card';
-            card.innerHTML = `
-                <div class="thumb-box"><img src="${displayData.img}"></div>
-                
-                <div class="info-row">
-                    <div class="info-label">📝 名稱</div>
-                    <div class="info-value">${displayData.name}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                </div>
-                
-                <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                
-                <div class="info-row">
-                    <div class="info-label">👤 作者</div>
-                    <div class="info-value">${displayData.authorDisplay}</div> 
-                    <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
-                </div>
-                
-                <div class="info-row">
-                    <div class="info-label">🆔 商品 ID</div>
-                    <div class="info-value">${displayData.itemId}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                </div>
-                
-                <div class="info-row">
-                    <div class="info-label">🖼️ 縮圖網址</div>
-                    <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                </div>
-                
-                <button class="btn-">🚀 同步至 GitHub</button>
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                // 修正點 4: btn- 改回 btn-sync
+                card.innerHTML = `
+                    <div class="thumb-box"><img src="${displayData.img}"></div>
+                    <div class="info-row">
+                        <div class="info-label">📝 名稱</div>
+                        <div class="info-value">${displayData.name}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                    </div>
+                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
+                    <div class="info-row">
+                        <div class="info-label">👤 作者</div>
+                        <div class="info-value">${displayData.authorDisplay}</div> 
+                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
@@ -150,20 +145,21 @@
             status.innerText = `✅ 掃描完成 (已自動補全商城資訊)`;
         } catch (err) {
             status.innerText = "❌ 發生錯誤: " + err.message;
+            console.error(err);
         }
     };
 
-    // 同步 GitHub 函數保持不變
-        async function sync(btn, itemData) {
+    // 同步 GitHub 函數
+    async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
     
         try {
-            const config = JSON.parse(localStorage.getItem('github_config') || '{}');
+            // 注意：這裡如果你在 GITHUB_CONFIG 寫死了，就用 GITHUB_CONFIG，如果要用 localStorage 存的就維持原樣
+            const config = JSON.parse(localStorage.getItem('github_config')) || GITHUB_CONFIG;
             const { token, owner, repo, path } = config;
     
-            // 1. 獲取現有的檔案內容
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
             const res = await fetch(getUrl, {
                 headers: { "Authorization": `token ${token}` }
@@ -175,12 +171,10 @@
             if (res.ok) {
                 const fileData = await res.json();
                 sha = fileData.sha;
-                // 安全解碼 UTF-8 Base64，解決 atob 報錯
                 const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
                 currentItems = JSON.parse(decodedContent);
             }
     
-            // 2. 依照你要求的格式整理新資料
             const newData = {
                 "id": itemData.itemId,
                 "img": itemData.img,
@@ -188,7 +182,6 @@
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
             };
     
-            // 3. 加入新資料 (若 ID 重複則更新，不重複則新增)
             const existsIndex = currentItems.findIndex(i => i.id === newData.id);
             if (existsIndex > -1) {
                 currentItems[existsIndex] = newData;
@@ -196,11 +189,9 @@
                 currentItems.push(newData);
             }
     
-            // 4. 將 JSON 轉換為 UTF-8 安全的 Base64 編碼
             const jsonString = JSON.stringify(currentItems, null, 2);
             const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
     
-            // 5. 推送到 GitHub
             const putRes = await fetch(getUrl, {
                 method: "PUT",
                 headers: {
@@ -231,7 +222,7 @@
             btn.disabled = false;
         }
     }
-};
+
     document.getElementById('btn_save').onclick = () => {
         const t = document.getElementById('token_input').value.trim();
         const u = document.getElementById('userid_input').value.trim();

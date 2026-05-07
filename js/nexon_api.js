@@ -1,56 +1,52 @@
 /**
- * Nexon MSW API 通訊模組
+ * Nexon MSW API 整合模組
+ * 修正：加入 Proxy 解決 Failed to fetch (CORS) 問題
  */
 const NexonAPI = {
-    // MSW API 基礎設定
-    // 注意：如果 API 報錯，可能需要更新此版本號
     RUNTIME_VERSION: "1.74.1", 
+    // 使用 cors-anywhere 代理來繞過瀏覽器限制
+    PROXY: "https://corsproxy.io/?",
 
     /**
-     * 第一步：將 5 碼 Profile Code 轉換為 17 碼 PPSN
-     * 對接 mverse-api (如同 Godot 腳本中的功能)
+     * 1. Profile Code 轉換為 PPSN
      */
     async getPpsnByCode(profileCode) {
-        console.log(`🌐 正在查詢 Profile Code: ${profileCode}`);
-        const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+        const targetUrl = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+        // 將目標網址串在 Proxy 後面
+        const url = this.PROXY + encodeURIComponent(targetUrl);
         
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("無法連接到 Profile API");
+            if (!response.ok) throw new Error("無法連接至轉換伺服器");
             
             const resData = await response.json();
-            
-            // 檢查回傳資料結構
             if (resData && resData.data && resData.data.ppsn) {
-                console.log(`✅ 轉換成功: ${resData.data.profileName} -> ${resData.data.ppsn}`);
                 return {
                     ppsn: resData.data.ppsn,
-                    name: resData.data.profileName,
-                    fullData: resData.data
+                    profileName: resData.data.profileName
                 };
             } else {
-                throw new Error("找不到該玩家 ID，請檢查 Code 是否正確");
+                throw new Error("找不到該玩家 Code");
             }
         } catch (err) {
-            console.error("getPpsnByCode 錯誤:", err);
+            console.error("getPpsnByCode 失敗:", err);
             throw err;
         }
     },
 
     /**
-     * 第二步：使用 PPSN 抓取該玩家穿戴中的裝備
-     * 需要 Access Token (從 AccountManager 取得)
+     * 2. 提取裝備清單
      */
     async getEquipList(ppsn) {
-        // 從 AccountManager 獲取目前儲存的 Token
+        // 從 AccountManager 取得當前存好的 Token
         const currentAccount = AccountManager.getCurrentAccount();
+        
         if (!currentAccount || !currentAccount.token) {
-            throw new Error("請先匯入或設定有效憑證 (Token)");
+            throw new Error("找不到憑證，請先點選下方已儲存的帳號");
         }
 
-        const url = `https://maplestoryworlds-api.nexon.com/api/v1/user/${ppsn}/avatar/equip-list`;
-
-        console.log(`📦 正在提取裝備資料, PPSN: ${ppsn}`);
+        const targetUrl = `https://maplestoryworlds-api.nexon.com/api/v1/user/${ppsn}/avatar/equip-list`;
+        const url = this.PROXY + encodeURIComponent(targetUrl);
 
         try {
             const response = await fetch(url, {
@@ -62,25 +58,13 @@ const NexonAPI = {
                 }
             });
 
-            if (response.status === 401) {
-                throw new Error("UNAUTHORIZED"); // Token 失效
-            }
-
-            if (!response.ok) {
-                throw new Error(`伺服器回應錯誤: ${response.status}`);
-            }
+            if (response.status === 401) throw new Error("憑證已失效，請重新抓取 Token");
+            if (!response.ok) throw new Error(`伺服器回應錯誤: ${response.status}`);
 
             const resData = await response.json();
-
-            // 回傳裝備列表
-            // 資料路徑通常在 resData.data.items
-            if (resData && resData.data && resData.data.items) {
-                return resData.data.items;
-            } else {
-                return []; // 無裝備
-            }
+            return (resData && resData.data && resData.data.items) ? resData.data.items : [];
         } catch (err) {
-            console.error("getEquipList 錯誤:", err);
+            console.error("getEquipList 失敗:", err);
             throw err;
         }
     }

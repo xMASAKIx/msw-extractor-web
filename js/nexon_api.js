@@ -18,9 +18,15 @@ const NexonAPI = {
     },
 
     async proxyFetch(url) {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        try {
-            const response = await fetch(proxyUrl, { headers: this.getHeaders() });
+    // 嘗試改用另一個較穩定的代理 (例如 hexarular)
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    
+    // 如果上面那個還是紅字，請嘗試改用這個 (通常這個比較穩定)：
+    // const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`; 
+    // 注意：使用 cors-anywhere 可能需要先去 https://cors-anywhere.herokuapp.com/checkout 點擊啟動臨時權限
+    
+    try {
+        const response = await fetch(proxyUrl, { headers: this.getHeaders() });
             if (response.status === 401) throw new Error("AccessToken 已失效");
             return await response.json();
         } catch (e) {

@@ -75,7 +75,7 @@
         });
     }
 
-    document.getElementById('btn_search').onclick = async function() {
+    document.getElementById('btn_search').onclick = a function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         
         const input = document.getElementById('target_input').value.trim();
@@ -141,7 +141,7 @@
                     <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                 </div>
                 
-                <button class="btn-sync">🚀 同步至 GitHub</button>
+                <button class="btn-">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
@@ -154,42 +154,83 @@
     };
 
     // 同步 GitHub 函數保持不變
-    async function sync(btn, data) {
-        if (data.itemId === "未上架") return alert("此裝備未上架，無法同步");
-        btn.disabled = true;
-        btn.innerText = "⏳ 同步中...";
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
-            const res = await fetch(url, { headers: { "Authorization": `token ${GITHUB_CONFIG.token}` } });
-            const json = await res.json();
-            const list = JSON.parse(decodeURIComponent(escape(atob(json.content))));
+    async function sync(btn, itemData) {
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ 同步中...";
+    btn.disabled = true;
 
-            if (list.some(i => String(i.id) === String(data.itemId))) throw new Error("ID 已存在");
+    try {
+        const config = JSON.parse(localStorage.getItem('github_config') || '{}');
+        const { token, owner, repo, path } = config;
 
-            list.push({
-                "keyword": data.name,
-                "wc": data.price === "未知" ? "未知" : data.price + "wc",
-                "id": String(data.itemId),
-                "author_ppsn": data.sellerPpsn,
-                "img": data.img
-            });
+        // 1. 獲取現有的檔案內容
+        const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const res = await fetch(getUrl, {
+            headers: { "Authorization": `token ${token}` }
+        });
 
-            await fetch(url, {
-                method: "PUT",
-                headers: { "Authorization": `token ${GITHUB_CONFIG.token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: `Add: ${data.name}`,
-                    content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
-                    sha: json.sha
-                })
-            });
-            btn.innerText = "✅ 成功";
-        } catch (err) {
-            alert(err.message);
-            btn.innerText = "🚀 失敗";
-            btn.disabled = false;
+        let sha = "";
+        let currentItems = [];
+        
+        if (res.ok) {
+            const fileData = await res.json();
+            sha = fileData.sha;
+            // 安全解碼 UTF-8 Base64，解決 atob 報錯
+            const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+            currentItems = JSON.parse(decodedContent);
         }
+
+        // 2. 依照你要求的格式整理新資料
+        const newData = {
+            "id": itemData.itemId,
+            "img": itemData.img,
+            "keyword": itemData.name,
+            "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
+        };
+
+        // 3. 加入新資料 (若 ID 重複則更新，不重複則新增)
+        const existsIndex = currentItems.findIndex(i => i.id === newData.id);
+        if (existsIndex > -1) {
+            currentItems[existsIndex] = newData;
+        } else {
+            currentItems.push(newData);
+        }
+
+        // 4. 將 JSON 轉換為 UTF-8 安全的 Base64 編碼
+        const jsonString = JSON.stringify(currentItems, null, 2);
+        const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
+
+        // 5. 推送到 GitHub
+        const putRes = await fetch(getUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `token ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: `Update item: ${newData.keyword}`,
+                content: encodedContent,
+                sha: sha
+            })
+        });
+
+        if (putRes.ok) {
+            btn.innerText = "✅ 同步成功";
+            setTimeout(() => { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            }, 2000);
+        } else {
+            const errorInfo = await putRes.json();
+            throw new Error(errorInfo.message || "GitHub 回傳錯誤");
+        }
+
+    } catch (err) {
+        alert("❌ 同步失敗: " + err.message);
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
+}
 
     document.getElementById('btn_save').onclick = () => {
         const t = document.getElementById('token_input').value.trim();

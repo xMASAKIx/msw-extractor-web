@@ -51,11 +51,6 @@ const NexonAPI = {
         const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0]);
 
         if (d) {
-            // --- 核心修改：組合作者暱稱與 5 碼 ID ---
-            const authorName = d.nickname || d.profileName || "未知";
-            const authorCode = d.profileCode ? `#${d.profileCode}` : "";
-            const authorDisplay = `${authorName}${authorCode}`; // 結果範例: 小波(#ABCDE)
-
             return {
                 price: d.itemPrice ?? d.targetPrice ?? 0,
                 sellerPpsn: d.sellerPpsn || "N/A",

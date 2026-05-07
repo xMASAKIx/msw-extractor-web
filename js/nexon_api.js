@@ -35,22 +35,38 @@ const NexonAPI = {
         }
     },
 
-    async getRealProductDetail(itemId) {
-        const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemId)}`;
-        try {
-            const res = await this.proxyFetch(searchUrl);
-            const items = res?.data?.items || res?.list || [];
-            if (items.length > 0) {
-                const d = items[0];
-                return {
-                    price: d.itemPrice ?? d.targetPrice ?? 0,
-                    sellerPpsn: d.sellerPpsn || "N/A",
-                    nickname: d.nickname || "未知",
-                    itemId: d.itemId || d.id
-                };
-            }
-        } catch (e) { console.error("商城搜尋失敗", e); }
-        return null;
+    async getRealProductDetail(input) {
+    let url;
+    
+    // 判斷 input 是否為 8 碼商品 ID (通常包含數字與大寫字母)
+    const isId = /^[A-Z0-9]{8,9}$/.test(input);
+
+    if (isId) {
+        // 使用你 Godot 代碼中的「直取版」API
+        url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
+    } else {
+        // 使用「搜尋版」API
+        url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}`;
+    }
+
+    try {
+        const res = await this.proxyFetch(url);
+        
+        // 直取版資料通常在 res.data；搜尋版在 res.data.items[0]
+        const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0]);
+
+        if (d) {
+            return {
+                price: d.itemPrice ?? d.targetPrice ?? 0,
+                sellerPpsn: d.sellerPpsn || "N/A",
+                nickname: d.nickname || d.profileName || "未知",
+                itemId: d.itemId || d.id || input
+            };
+        }
+    } catch (e) { 
+        console.error("獲取商品詳情失敗", e); 
+    }
+    return null;
     }, // <--- 注意這裡的逗號，之前可能漏掉了
 
     async getPpsnByCode(profileCode) {

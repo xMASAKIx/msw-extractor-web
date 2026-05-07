@@ -1,5 +1,5 @@
 /**
- * MSW Nexon API 核心模組 - 完整價格校對版
+ * MSW Nexon API 核心模組 - 穩定增強版
  */
 const NexonAPI = {
     getHeaders: () => {
@@ -20,44 +20,66 @@ const NexonAPI = {
     async proxyFetch(url) {
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl, { headers: this.getHeaders() });
-        if (response.status === 401) throw new Error("憑證已失效，請重新儲存");
-        return await response.json();
+        
+        // 處理 HTTP 401 認證錯誤
+        if (response.status === 401) throw new Error("憑證已失效，請重新更新 AccessToken");
+        
+        const json = await response.json();
+        
+        // 處理 Nexon API 內部的錯誤代碼 (例如代碼非 0)
+        if (json.code !== undefined && json.code !== 0) {
+            console.warn(`API 回傳異常代碼: ${json.code}`, json.message);
+        }
+        
+        return json;
     },
 
     /**
-     * 核心加強：去商城搜尋該商品以獲取「真實當前價格」與「詳細資料」
-     * 穿戴清單通常不帶價格，必須透過這個搜尋接口補完資料
+     * 核心：從商城搜尋商品獲取真實價格與 ID
      */
     async getRealProductDetail(itemName) {
+        // 使用 sort=1 (最新) 搜尋
         const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
         try {
             const res = await this.proxyFetch(searchUrl);
             const items = res.data?.items || res.list || [];
+            
             if (items.length > 0) {
                 const data = items[0];
                 return {
-                    price: data.targetPrice || data.itemPrice, // 當前商城售價
-                    itemId: data.itemId || data.id,           // 商城正式商品 ID
-                    img: data.itemThumbnailUrl || data.itemImageUrl, // 商城縮圖
+                    price: data.targetPrice || data.itemPrice || 0, 
+                    itemId: data.itemId || data.id,           
+                    img: data.itemThumbnailUrl || data.itemImageUrl || data.thumbnail, 
                     author: data.nickname || data.profileName || "未知"
                 };
             }
         } catch (e) {
-            console.error(`無法獲取 ${itemName} 的商城詳情:`, e);
+            console.error(`無法獲取商品 [${itemName}] 的商城詳情:`, e);
         }
         return null;
     },
 
+    /**
+     * 將 5 碼 ID 轉換為系統用的 PPSN
+     */
     async getPpsnByCode(profileCode) {
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
-        const json = await this.proxyFetch(url);
-        if (json.data && json.data.ppsn) return json.data.ppsn;
-        throw new Error("找不到該 ID 對應的玩家");
+        try {
+            const json = await this.proxyFetch(url);
+            if (json.data && json.data.ppsn) return json.data.ppsn;
+        } catch (e) {
+            throw new Error(`玩家 ID (${profileCode}) 查詢失敗`);
+        }
+        throw new Error("找不到該玩家，請檢查 5 碼 ID 是否正確");
     },
 
+    /**
+     * 抓取玩家當前穿戴清單
+     */
     async getEquipList(input) {
         let ppsn = input.trim();
-        // 支援 5 碼 ID 轉換為 PPSN
+        
+        // 如果輸入是 5 碼則先轉換
         if (ppsn.length === 5) {
             ppsn = await this.getPpsnByCode(ppsn);
         }
@@ -65,18 +87,20 @@ const NexonAPI = {
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
         
+        // 裝備過濾清單
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
         const rawItems = (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
 
-        // 這裡會回傳清單，之後在前端 index.html 的迴圈中
-        // 再呼叫 getRealProductDetail(item.itemName) 來補齊價格與縮圖
+        if (rawItems.length === 0) return [];
+
         return rawItems.map(item => ({
             itemName: item.itemName,
-            itemId: item.itemId || item.ruid || "N/A",
+            // 穿戴清單提供的 itemId 有時是 RUID，先紀錄起來，後續由 getRealProductDetail 校對
+            itemId: item.itemId || item.ruid || "N/A", 
             itemImageUrl: item.itemImageUrl || item.itemThumbnailUrl || ""
         }));
     }
 };
 
-// 確保掛載到 window 物件，讓 index.html 抓得到
+// 掛載到全域讓 index.html 存取
 window.NexonAPI = NexonAPI;

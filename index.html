@@ -3,137 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSW 裝備提取管理器</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>MSW 裝備提取管理器 Pro</title>
     <style>
-        :root {
-            --bg-color: #121214; --card-bg: #1c1c1f; --input-bg: #2a2a2e;
-            --accent: #3b82f6; --success: #10b981; --price-green: rgb(102, 178, 127);
-            --text-gray: #a0a0a0;
-        }
-        body { background-color: var(--bg-color); color: white; font-family: sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
-        h1 { color: #4ade80; display: flex; align-items: center; gap: 10px; }
-        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2d2d30; }
-        .search-group { display: flex; gap: 10px; }
-        input { flex: 1; background: var(--input-bg); border: 1px solid #3f3f46; padding: 10px; border-radius: 8px; color: white; }
-        button { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-blue { background: var(--accent); color: white; }
-        .btn-green { background: var(--success); color: white; width: 100%; margin-top: 10px; }
-        .error-msg { background: #451a1a; color: #f87171; padding: 12px; border-radius: 8px; margin-top: 15px; display: none; border-left: 4px solid #f87171; }
-        .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 15px; padding: 10px 0; }
-        .equip-slot { background: #000; width: 70px; height: 70px; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; border: 1px solid #333; }
-        .equip-slot img { max-width: 55px; max-height: 55px; image-rendering: pixelated; }
+        body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; outline: none; }
+        button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-save { background: #10b981; color: white; }
+
+        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
+        .item-card:hover { transform: translateY(-5px); border-color: #4ade80; }
         
-        /* 彈窗樣式 */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal.active { display: flex; }
-        .modal-content { background: var(--card-bg); width: 380px; padding: 25px; border-radius: 20px; position: relative; }
-        .preview-box { background: #000; height: 220px; border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-bottom: 15px; }
-        .preview-box img { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
-        .price-hint { color: var(--price-green); font-size: 11px; font-weight: bold; margin: 5px 0 15px 22px; }
-        .copy-field { background: #2a2a32; padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; margin-left: 22px; margin-bottom: 12px; }
-        .copy-field span { font-size: 13px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .copy-icon { color: #f59e0b; cursor: pointer; margin-left: 10px; }
+        .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 1px solid #27272a; overflow: hidden; }
+        .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
+
+        .price-text { font-size: 28px; color: #66d981; font-weight: bold; margin-bottom: 15px; display: flex; align-items: baseline; gap: 4px; }
+        .price-unit { font-size: 14px; color: #809980; }
+
+        .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
+        .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
+        .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
+        
+        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; flex-shrink: 0; }
+        .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
+        
+        #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
     </style>
 </head>
 <body>
 
-    <h1><i class="fas fa-tshirt"></i> MSW 裝備提取管理器</h1>
+<div class="container">
+    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1></header>
 
-    <div class="container">
-        <div class="left-col">
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
+        <div class="left">
             <div class="card">
-                <div class="search-group">
-                    <input type="text" id="searchInput" placeholder="輸入玩家 ID 或 5 碼代碼">
-                    <button class="btn-blue" onclick="startScan()">開始掃描</button>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID (例如: 12345) 或 PPSN">
+                    <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
                 </div>
-                <div id="errorBox" class="error-msg"></div>
+                <div id="status-bar"></div>
             </div>
-            <div class="card">
-                <div class="equip-grid" id="equipList">等待掃描...</div>
-            </div>
+            <div id="equip_list" class="item-grid"></div>
         </div>
 
-        <div class="right-col">
+        <div class="right">
             <div class="card">
-                <div style="font-size:13px; color:var(--text-gray);">Access Token</div>
-                <input type="password" id="tokenInput">
-                <div style="font-size:13px; color:var(--text-gray); margin-top:10px;">User ID (帳號別名)</div>
-                <input type="text" id="userIdInput">
-                <button class="btn-green" onclick="saveCredentials()">儲存憑證</button>
+                <h3>🔑 憑證管理</h3>
+                <input type="password" id="token_input" placeholder="AccessToken">
+                <input type="text" id="userid_input" placeholder="UserId">
+                <button id="btn_save" class="btn-save">💾 儲存並刷新</button>
             </div>
         </div>
     </div>
+</div>
 
-    <div id="detailModal" class="modal">
-        <div class="modal-content">
-            <i class="fas fa-times" style="position:absolute; right:20px; top:20px; cursor:pointer;" onclick="closeModal()"></i>
-            <div class="preview-box"><img id="mImg" src=""></div>
-            <div style="padding-left:22px; margin-bottom:5px;" id="mName">名稱</div>
-            <div class="price-hint" id="mPrice">當前價格: 載入中...</div>
-            <div style="color:var(--text-gray); font-size:13px; margin-left:22px;">商品 ID</div>
-            <div class="copy-field"><span id="mId"></span><i class="fas fa-file-signature copy-icon" onclick="copyValue('mId')"></i></div>
-            <div style="color:var(--text-gray); font-size:13px; margin-left:22px;">縮圖</div>
-            <div class="copy-field"><span id="mUrl"></span><i class="fas fa-file-signature copy-icon" onclick="copyValue('mUrl')"></i></div>
-            <button style="background:#6366f1; color:white; width:100%; padding:12px; border-radius:10px; font-weight:bold;">🚀 同步至 GitHub</button>
-        </div>
-    </div>
+<script>
+    /**
+     * NexonAPI 核心 (整合你提供的代碼)
+     */
+    const NexonAPI = {
+        getHeaders: () => {
+            const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
+            const currentAccount = accounts[0] || { userId: '', token: '' };
+            return {
+                "mod-accesstoken": currentAccount.token,
+                "mod-user-id": currentAccount.userId,
+                "x-mod-client": "727d112f1370415e85686530ec048fb7",
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            };
+        },
 
-    <script src="nexon_api.js"></script>
-    <script>
-        let scannedData = [];
+        async proxyFetch(url) {
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl, { headers: this.getHeaders() });
+            if (response.status === 401) throw new Error("憑證已失效，請重新儲存");
+            return await response.json();
+        },
 
-        function saveCredentials() {
-            const token = document.getElementById('tokenInput').value.trim();
-            const userId = document.getElementById('userIdInput').value.trim();
-            localStorage.setItem('msw_accounts_v1', JSON.stringify([{ userId, token }]));
-            alert("儲存成功");
-        }
+        async getPpsnByCode(profileCode) {
+            const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;
+            const json = await this.proxyFetch(url);
+            if (json.data && json.data.ppsn) return json.data.ppsn;
+            throw new Error("找不到該 ID 對應的玩家");
+        },
 
-        async function startScan() {
-            const val = document.getElementById('searchInput').value.trim();
-            const grid = document.getElementById('equipList');
-            const err = document.getElementById('errorBox');
-            
-            if(!val) return;
-            err.style.display = 'none';
-            grid.innerHTML = '掃描中...';
-
+        // 關鍵加強：去商城搜尋該商品以獲取「真實 itemId」與「真實價格」
+        async getRealProductDetail(itemName) {
+            const searchUrl = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(itemName)}`;
             try {
-                // 這裡會呼叫 nexon_api.js 裡的 NexonAPI
-                scannedData = await window.NexonAPI.getEquipList(val);
-                grid.innerHTML = '';
-                scannedData.forEach((item, i) => {
-                    const div = document.createElement('div');
-                    div.className = 'equip-slot';
-                    div.onclick = () => showDetail(i);
-                    div.innerHTML = `<img src="${item.itemImageUrl}">`;
-                    grid.appendChild(div);
-                });
-            } catch (e) {
-                err.innerText = `❌ ${e.message}`;
-                err.style.display = 'block';
-                grid.innerHTML = '';
+                const res = await this.proxyFetch(searchUrl);
+                const items = res.data?.items || res.list || [];
+                return items.length > 0 ? items[0] : null;
+            } catch (e) { return null; }
+        },
+
+        async getEquipList(input) {
+            let ppsn = input;
+            if (input.length === 5) ppsn = await this.getPpsnByCode(input);
+
+            const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
+            const json = await this.proxyFetch(url);
+            const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
+            return (json.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+        }
+    };
+
+    const GITHUB_CONFIG = {
+        token: "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",
+        owner: "xmasakix",
+        repo: "MSW-ID",
+        path: "data.json"
+    };
+
+    function copy(text, btn) {
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        btn.innerText = "OK";
+        setTimeout(() => btn.innerText = "📋", 1000);
+    }
+
+    document.getElementById('btn_search').onclick = async function() {
+        const input = document.getElementById('target_input').value.trim();
+        const status = document.getElementById('status-bar');
+        const grid = document.getElementById('equip_list');
+
+        if (!input) return;
+        status.style.display = "block";
+        status.innerText = "⏳ 正在抓取穿戴清單...";
+        grid.innerHTML = "";
+
+        try {
+            const rawItems = await NexonAPI.getEquipList(input);
+            
+            for (let item of rawItems) {
+                status.innerText = `⏳ 正在比對商城真實資料: ${item.itemName}...`;
+                
+                // 獲取真實資料 (包含正確的 itemId 和價格)
+                const realData = await NexonAPI.getRealProductDetail(item.itemName);
+                
+                const displayData = {
+                    name: item.itemName,
+                    price: realData ? (realData.targetPrice || realData.itemPrice) : "???",
+                    itemId: realData ? (realData.itemId || realData.id) : (item.itemId || "未上架"),
+                    img: item.itemImageUrl || item.itemThumbnailUrl,
+                    author: realData ? (realData.nickname || realData.profileName) : "未知"
+                };
+
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="thumb-box"><img src="${displayData.img}"></div>
+                    <div class="price-text">${displayData.price} <span class="price-unit">wc</span></div>
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
+                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.author}</div></div>
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
+                `;
+
+                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+                grid.appendChild(card);
             }
+            status.innerText = `✅ 掃描完成，已校對商城資料`;
+        } catch (err) {
+            status.innerText = "❌ 錯誤: " + err.message;
         }
+    };
 
-        function showDetail(index) {
-            const item = scannedData[index];
-            document.getElementById('mImg').src = item.itemImageUrl;
-            document.getElementById('mName').innerText = item.itemName;
-            document.getElementById('mId').innerText = item.itemId;
-            document.getElementById('mUrl').innerText = item.itemImageUrl;
-            
-            // Godot 價格邏輯：current_price < 0 ? "未知" : "%d WC"
-            const p = parseInt(item.targetPrice);
-            document.getElementById('mPrice').innerText = `當前價格: ${ (p < 0 || isNaN(p)) ? "未知" : p + " WC" }`;
-            
-            document.getElementById('detailModal').classList.add('active');
+    async function sync(btn, data) {
+        if (data.itemId === "未上架") return alert("此裝備未在商城上架，無法同步 ID");
+        btn.disabled = true;
+        btn.innerText = "⏳ 同步中...";
+        try {
+            const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
+            const res = await fetch(url, { headers: { "Authorization": `token ${GITHUB_CONFIG.token}` } });
+            const json = await res.json();
+            const list = JSON.parse(decodeURIComponent(escape(atob(json.content))));
+
+            if (list.some(i => String(i.id) === String(data.itemId))) throw new Error("ID 已存在");
+
+            list.push({
+                "keyword": data.name,
+                "wc": data.price + "wc",
+                "id": String(data.itemId),
+                "img": data.img
+            });
+
+            await fetch(url, {
+                method: "PUT",
+                headers: { "Authorization": `token ${GITHUB_CONFIG.token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: `Add: ${data.name}`,
+                    content: btoa(unescape(encodeURIComponent(JSON.stringify(list, null, "\t")))),
+                    sha: json.sha
+                })
+            });
+            btn.innerText = "✅ 成功";
+        } catch (err) {
+            alert(err.message);
+            btn.innerText = "🚀 同步失敗";
+            btn.disabled = false;
         }
+    }
 
-        function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
-        function copyValue(id) { navigator.clipboard.writeText(document.getElementById(id).innerText); }
-    </script>
+    document.getElementById('btn_save').onclick = () => {
+        const t = document.getElementById('token_input').value.trim();
+        const u = document.getElementById('userid_input').value.trim();
+        if (t && u) {
+            localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: u, token: t}]));
+            alert("憑證已更新！");
+            location.reload();
+        }
+    };
+</script>
 </body>
 </html>

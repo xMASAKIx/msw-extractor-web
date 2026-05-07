@@ -106,29 +106,38 @@
                     sellerPpsn: realData ? realData.sellerPpsn : "未知"
                 };
 
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}"></div>                    
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div><button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                    
-                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    
-                    <div class="info-row">
-                        <div class="info-label">👤 作者</div>
-                        <div class="info-value">${displayData.sellerPpsn}</div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+                <div class="thumb-box"><img src="${displayData.img}"></div>
+                
+                <div class="info-row">
+                    <div class="info-label">📝 名稱</div>
+                    <div class="info-value">${displayData.name}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                </div>
+                
+                <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
+                
+                <div class="info-row">
+                    <div class="info-label">👤 作者</div>
+                    <div class="info-value">${displayData.sellerPpsn}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">🆔 商品 ID</div>
+                    <div class="info-value">${displayData.itemId}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">🖼️ 縮圖網址</div>
+                    <div class="info-value" title="${displayData.img}">${displayData.img}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                </div>
+                
+                <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);

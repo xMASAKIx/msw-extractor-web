@@ -16,6 +16,30 @@ const NexonAPI = {
             "Content-Type": "application/json"
         };
     },
+    /**
+     * 代理請求 - 加入強制作廢快取邏輯
+     */
+    async proxyFetch(url) {
+        // 在網址後方加入隨機時間戳記，確保每次請求網址都不同，繞過代理伺服器的快取
+        const cacheBuster = `&_t=${Date.now()}`;
+        const finalUrl = url.includes('?') ? (url + cacheBuster) : (url + "?" + cacheBuster.substring(1));
+        
+        // 建議改用另一個代理，allorigins 快取非常嚴重
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(finalUrl)}`;
+
+        try {
+            const response = await fetch(proxyUrl, { 
+                headers: this.getHeaders(),
+                cache: 'no-store' // 同時告訴瀏覽器不要儲存本地快取
+            });
+            
+            if (response.status === 401) throw new Error("AccessToken 已失效");
+            return await response.json();
+        } catch (e) {
+            console.error("Fetch 失敗:", e);
+            return null;
+        }
+    },
 
     /**
      * 核心：從商城搜尋商品獲取真實價格與 ID

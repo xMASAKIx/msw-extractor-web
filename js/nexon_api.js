@@ -55,7 +55,7 @@ const NexonAPI = {
                 price: d.itemPrice ?? d.targetPrice ?? 0,
                 sellerPpsn: d.sellerPpsn || "N/A",
                 nickname: d.nickname || d.profileName || "未知",
-                profileCode: d.profileCode || "", // 確保有回傳 5 碼 ID
+                profileCode: d.profileCode || d.sellerProfileCode || d.authorProfileCode || "", 
                 itemId: d.itemId || d.id || input
             };
         }

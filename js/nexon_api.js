@@ -18,33 +18,28 @@ const NexonAPI = {
     },
 
     async proxyFetch(url) {
-        // 使用隨機數 + 時間戳記，確保每個請求對代理伺服器來說都是全新的
-        const randomSeed = Math.random().toString(36).substring(7);
-        const cacheBuster = `&nocache=${Date.now()}_${randomSeed}`;
-        const finalUrl = url + cacheBuster;
+    // 強制去快取：加入時間戳記與隨機字串
+    const cacheBuster = `&_cb=${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const finalUrl = url + cacheBuster;
+    
+    // 改用支援自定義 Header 較穩定的 corsproxy.io
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
+
+    try {
+        const response = await fetch(proxyUrl, { 
+            headers: this.getHeaders(),
+            cache: 'no-store' 
+        });
         
-        // 更換代理服務，或是強迫 allorigins 重新抓取
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(finalUrl)}&disableCache=true`;
-
-        try {
-            const response = await fetch(proxyUrl, { 
-                headers: this.getHeaders(),
-                cache: 'no-store'
-            });
-            
-            const outerJson = await response.json();
-            // allorigins 返回的結果在 .contents 裡面，且通常是字串，需要解析
-            const data = typeof outerJson.contents === 'string' 
-                ? JSON.parse(outerJson.contents) 
-                : outerJson.contents;
-
-            if (data?.code === 401 || data?.code === 403) throw new Error("AccessToken 失效");
-            return data;
-        } catch (e) {
-            console.error("Fetch 失敗:", e);
-            return null;
-        }
-    },
+        if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
+        
+        // 直接回傳 JSON，不需要解析 .contents (因為不是 allorigins)
+        return await response.json();
+    } catch (e) {
+        console.error("代理請求失敗:", e);
+        return null;
+    }
+},
 
     /**
      * 核心：從商城搜尋商品獲取真實價格與作者 ID (PPSN)

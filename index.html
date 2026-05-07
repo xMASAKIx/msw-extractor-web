@@ -110,15 +110,14 @@
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>                    
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div>
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div></div><button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
                     
                     <div class="info-row">
                         <div class="info-label">👤 作者</div>
                         <div class="info-value">${displayData.sellerPpsn}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.sellerPpsn}', this)">📋</button>
+                        
                     </div>
-
                     <div class="info-row">
                         <div class="info-label">🆔 商品 ID</div>
                         <div class="info-value">${displayData.itemId}</div>
@@ -128,6 +127,7 @@
                         <div class="info-label">🖼️ 縮圖網址</div>
                         <div class="info-value" title="${displayData.img}">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 

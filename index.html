@@ -5,7 +5,6 @@
     <title>MSW 裝備管理器 Pro</title>
     <script src="js/nexon_api.js"></script>
     <style>
-        /* ... 保持你原本的 CSS 不變 ... */
         body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
@@ -53,17 +52,16 @@
 </div>
 
 <script>
-    // 檢查 NexonAPI 是否加載成功
     window.onload = () => {
         if (typeof NexonAPI === 'undefined') {
             const statusBar = document.getElementById('status-bar');
             statusBar.style.display = 'block';
-            statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js，請檢查檔案路徑。";
+            statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
         }
     };
 
     const GITHUB_CONFIG = {
-        token: "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",
+        token: "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".trim(),
         owner: "xmasakix",
         repo: "MSW-ID",
         path: "data.json"
@@ -71,16 +69,13 @@
 
     function copy(text, btn) {
         navigator.clipboard.writeText(text).then(() => {
-            const oldText = btn.innerText;
             btn.innerText = "OK";
             setTimeout(() => btn.innerText = "📋", 1000);
         });
     }
 
-    // 修正點 1 & 2: 移除多餘的 'a' 並加上 'async'
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
-        
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
@@ -92,10 +87,8 @@
 
         try {
             const rawItems = await NexonAPI.getEquipList(input);
-            
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
-                
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 
                 const displayData = {
@@ -106,118 +99,94 @@
                     img: item.itemImageUrl || item.itemThumbnailUrl,
                     authorDisplay: realData 
                         ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
-                        : "未上架",
-                    sellerPpsn: realData ? realData.sellerPpsn : "未上架"
+                        : "未上架"
                 };
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
-                // 修正點 4: btn- 改回 btn-sync
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>
-                    <div class="info-row">
-                        <div class="info-label">📝 名稱</div>
-                        <div class="info-value">${displayData.name}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                    </div>
+                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div><button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button></div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row">
-                        <div class="info-label">👤 作者</div>
-                        <div class="info-value">${displayData.authorDisplay}</div> 
-                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value" title="${displayData.img}">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
+                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.authorDisplay}</div><button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button></div>
+                    <div class="info-row"><div class="info-label">🆔 商品 ID</div><div class="info-value">${displayData.itemId}</div><button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button></div>
+                    <div class="info-row"><div class="info-label">🖼️ 縮圖網址</div><div class="info-value">${displayData.img}</div><button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button></div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 掃描完成 (已自動補全商城資訊)`;
+            status.innerText = `✅ 掃描完成`;
         } catch (err) {
             status.innerText = "❌ 發生錯誤: " + err.message;
-            console.error(err);
         }
     };
 
-    // 同步 GitHub 函數
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
     
         try {
-            // 強制直接使用你寫死在程式碼開頭的 GITHUB_CONFIG，不抓 localStorage
             const { token, owner, repo, path } = GITHUB_CONFIG;
-    
+            if (!token) throw new Error("請先在程式碼中設定 GITHUB_CONFIG.token");
+
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-            const res = await fetch(getUrl, {
-                headers: { "Authorization": `token ${token}` }
-            });
-    
-            // 如果連獲取 SHA 都失敗，代表 Token 真的有問題
-            if (res.status === 401) throw new Error("GitHub Token 無效或已過期");
+            const commonHeaders = {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json"
+            };
+
+            const res = await fetch(getUrl, { headers: commonHeaders });
             
             let sha = "";
             let currentItems = [];
             
+            if (res.status === 401) throw new Error("Token 驗證失敗 (Bad Credentials)");
+            if (res.status === 403) throw new Error("Token 權限不足 (需勾選 Contents Read/Write)");
+
             if (res.ok) {
                 const fileData = await res.json();
                 sha = fileData.sha;
                 const decodedContent = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
                 currentItems = JSON.parse(decodedContent);
             }
-    
+
             const newData = {
                 "id": itemData.itemId,
                 "img": itemData.img,
                 "keyword": itemData.name,
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
             };
-    
+
             const existsIndex = currentItems.findIndex(i => i.id === newData.id);
             if (existsIndex > -1) {
                 currentItems[existsIndex] = newData;
             } else {
                 currentItems.push(newData);
             }
-    
+
             const jsonString = JSON.stringify(currentItems, null, 2);
             const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
-    
+
             const putRes = await fetch(getUrl, {
                 method: "PUT",
-                headers: {
-                    "Authorization": `token ${token}`,
-                    "Content-Type": "application/json"
-                },
+                headers: { ...commonHeaders, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: `Update item: ${newData.keyword}`,
                     content: encodedContent,
                     sha: sha
                 })
             });
-    
+
             if (putRes.ok) {
                 btn.innerText = "✅ 同步成功";
-                setTimeout(() => { 
-                    btn.innerText = originalText; 
-                    btn.disabled = false; 
-                }, 2000);
+                setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
             } else {
                 const errorInfo = await putRes.json();
-                throw new Error(errorInfo.message || "GitHub 回傳錯誤");
+                throw new Error(errorInfo.message || "GitHub 更新失敗");
             }
-    
         } catch (err) {
             alert("❌ 同步失敗: " + err.message);
             btn.innerText = originalText;

@@ -13,13 +13,13 @@ const NexonAPI = {
 
     async proxyFetch(url, isProfile = false) {
         let finalUrl = url;
-        // 只有非 Profile API 才加隨機參數，避免特定 API 報錯
         if (!isProfile) {
             const separator = url.includes('?') ? '&' : '?';
-            finalUrl = url + `${separator}_cb=${Date.now()}`;
+            // 使用更簡潔的 cache buster，避免 URL 過長導致代理失敗
+            finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
-        // 切換至 corsproxy.io 以解決截圖中的 Preflight CORS 錯誤
+        // 截圖顯示 allorigins 失敗，這裡強制改用 corsproxy.io
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
         try {
@@ -51,7 +51,7 @@ const NexonAPI = {
             }
         } catch (e) { console.error("商城搜尋失敗", e); }
         return null;
-    },
+    }, // <--- 注意這裡的逗號，之前可能漏掉了
 
     async getPpsnByCode(profileCode) {
         const url = `https://mverse-api.nexon.com/profile/v1/profileCode/${profileCode}`;

@@ -132,7 +132,8 @@
                     priceUnit: realData ? "wc" : "",
                     itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    sellerPpsn: realData ? realData.sellerPpsn : "",
+                    // 💡 重要：這裡要從 realData 提取 sellerPpsn
+                    sellerPpsn: realData ? realData.sellerPpsn : "", 
                     authorDisplay: realData 
                         ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
                         : "未上架"
@@ -204,7 +205,7 @@
                 "img": itemData.img,
                 "keyword": itemData.name,
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price),
-                "author": String(itemData.sellerPpsn || "")
+                "author": String(itemData.sellerPpsn || "") // 💡 增加這一行
             };
     
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);

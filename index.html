@@ -45,10 +45,18 @@
             <div class="card">
                 <h3>🔑 憑證管理</h3>
                 
-                <h4>Nexon 帳號</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h4>Nexon 帳號</h4>
+                    <!-- 增加一個小按鈕來觸發檔案選取 -->
+                    <button id="btn_import_json" style="font-size: 11px; padding: 2px 8px; cursor: pointer; background: #3f3f46; color: white; border: 1px solid #52525b; border-radius: 4px;">📂 匯入 JSON</button>
+                    <input type="file" id="file_selector" accept=".json" style="display: none;">
+                </div>
+        
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
                 
+                <p id="import_info" style="font-size:11px; color:#4ade80; margin-top:5px; display:none;"></p>
+        
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
                 
                 <h4>GitHub 配置</h4>

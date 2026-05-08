@@ -47,10 +47,9 @@
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <h4 style="margin: 0;">Nexon 帳號</h4>
-                    <!-- 隱藏的 file input -->
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
-                    <!-- 觸發按鈕 -->
-                    <button id="btn_import" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
+                    <!-- 直接綁定點擊事件，防止 JS 載入延遲失效 -->
+                    <button id="btn_import" onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
                 </div>
         
                 <input type="password" id="token_input" placeholder="AccessToken">
@@ -70,14 +69,14 @@
 </div>
 
 <script>
-// 1. 基礎配置 (請在此輸入你的 Webhook)
+    // 1. 基礎配置
     const GITHUB_CONFIG = {
         owner: "xmasakix",
         repo: "MSW-ID",
         path: "data.json"
     };
     
-    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1491158208100700293/v5Ywm9LtF0FGWo9hdSDE3oHVzhvN_bxdH2I-krbTvgQT5NQP1QDxqmKcacG2TGP3kzSu"; // ⬅️ 在此填入你的 DC 網址
+    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1491158208100700293/v5Ywm9LtF0FGWo9hdSDE3oHVzhvN_bxdH2I-krbTvgQT5NQP1QDxqmKcacG2TGP3kzSu";
 
     // 2. 頁面載入邏輯
     window.onload = () => {
@@ -88,9 +87,12 @@
                 statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
             }
         }
+        
+        // 載入 GitHub Token
         const savedGhToken = localStorage.getItem('github_token_v1');
         if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
 
+        // 載入 Nexon 帳號
         const savedAccounts = localStorage.getItem('msw_accounts_v1');
         if (savedAccounts) {
             try {
@@ -104,12 +106,76 @@
         initImportFeature();
     };
 
-    // (中間的 initImportFeature, copy, btn_save 保持不變...)
-    function initImportFeature() { /* ... 同你原本的程式碼 ... */ }
-    function copy(text, btn) { /* ... 同你原本的程式碼 ... */ }
-    document.getElementById('btn_save').onclick = () => { /* ... 同你原本的程式碼 ... */ };
+    // 3. 匯入功能邏輯
+    function initImportFeature() {
+        const fileSelector = document.getElementById('file_selector');
+        const importStatus = document.getElementById('import_status');
 
-    // 3. 掃描裝備邏輯 (加入強制重新提取與視覺回饋)
+        if (!fileSelector) return;
+
+        fileSelector.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const currentId = data.current_account;
+                    const accounts = data.accounts || [];
+                    const activeAccount = accounts.find(acc => acc.user_id === currentId);
+
+                    if (activeAccount) {
+                        const token = activeAccount.access_token;
+                        const userId = activeAccount.user_id;
+
+                        document.getElementById('token_input').value = token;
+                        document.getElementById('userid_input').value = userId;
+                        
+                        if (importStatus) {
+                            importStatus.innerText = `✅ 已自動儲存：${activeAccount.nickname || userId}`;
+                            importStatus.style.display = 'block';
+                        }
+
+                        // 直接幫你儲存，不用再按儲存憑證
+                        localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: userId, token: token}]));
+                    } else {
+                        alert('❌ 找不到目前啟用的帳號 (current_account)');
+                    }
+                } catch (err) {
+                    alert('❌ JSON 檔案解析失敗');
+                }
+                fileSelector.value = ''; // 重置以利下次選取
+            };
+            reader.readAsText(file);
+        };
+    }
+
+    function copy(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+            const oldText = btn.innerText;
+            btn.innerText = "OK";
+            setTimeout(() => btn.innerText = oldText, 1000);
+        });
+    }
+
+    // 4. 手動儲存憑證
+    document.getElementById('btn_save').onclick = () => {
+        const nToken = document.getElementById('token_input').value.trim();
+        const nUser = document.getElementById('userid_input').value.trim();
+        const gToken = document.getElementById('gh_token_input').value.trim();
+
+        if (nToken && nUser) {
+            localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
+        }
+        if (gToken) {
+            localStorage.setItem('github_token_v1', gToken);
+        }
+
+        alert("所有憑證已同步至瀏覽器快取！");
+    };
+
+    // 5. 掃描裝備邏輯
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
@@ -118,7 +184,7 @@
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在強制重新提取最新穿戴清單..."; // 提醒使用者這是最新資料
+        status.innerText = "🔄 正在強制重新提取最新穿戴清單...";
         grid.innerHTML = "";
 
         try {
@@ -129,9 +195,7 @@
             }
 
             for (let item of rawItems) {
-                status.innerText = `⏳ 正在抓取最新商城資料: ${item.itemName}...`;
-                
-                // 強制重新提取商城細節
+                status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 
                 const displayData = {
@@ -140,7 +204,6 @@
                     priceUnit: (realData && realData.price !== "未上架") ? "wc" : "",
                     itemId: realData?.itemId || item.itemId || "未上架",
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    // 確保這裡抓到 sellerPpsn，同步時作者才不會空掉
                     sellerPpsn: realData?.sellerPpsn || "", 
                     authorDisplay: (realData && realData.profileCode) 
                         ? `${realData.nickname}#${realData.profileCode}` 
@@ -178,13 +241,13 @@
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 已成功提取最新資料 (更新時間: ${new Date().toLocaleTimeString()})`;
+            status.innerText = `✅ 提取完成 (時間: ${new Date().toLocaleTimeString()})`;
         } catch (err) {
-            status.innerText = "❌ 發生錯誤: " + err.message;
+            status.innerText = "❌ 錯誤: " + err.message;
         }
     };
 
-    // 4. 同步函式 (包含 GitHub 更新 與 Discord 通知)
+    // 6. 同步函式
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
@@ -201,7 +264,6 @@
                 "Accept": "application/vnd.github.v3+json"
             };
 
-            // A. 抓取 GitHub 舊檔案
             const res = await fetch(getUrl, { headers: commonHeaders });
             let sha = "";
             let currentItems = [];
@@ -214,7 +276,6 @@
                 currentItems = JSON.parse(decodedContent);
             }
 
-            // B. 準備新資料 (author 使用 sellerPpsn)
             const newData = {
                 "id": String(itemData.itemId),
                 "img": itemData.img,
@@ -230,12 +291,11 @@
             const jsonString = JSON.stringify(currentItems, null, 2);
             const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
 
-            // C. 上傳至 GitHub
             const putRes = await fetch(getUrl, {
                 method: "PUT",
                 headers: { ...commonHeaders, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    message: `📦 更新裝備: ${newData.keyword}`,
+                    message: `📦 Update: ${newData.keyword}`,
                     content: encodedContent,
                     sha: sha
                 })
@@ -243,27 +303,24 @@
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
 
-            // D. 發送 Discord 通知
-            if (DISCORD_WEBHOOK_URL && DISCORD_WEBHOOK_URL.startsWith("http")) {
-                const dcPayload = {
-                    username: "MSW 庫存助手",
-                    embeds: [{
-                        title: "✅ 裝備資料同步完成",
-                        color: 3066993,
-                        fields: [
-                            { name: "商品", value: newData.keyword, inline: true },
-                            { name: "價格", value: `${newData.wc} WC`, inline: true },
-                            { name: "作者 PPSN", value: `\`${newData.author || "未知"}\``, inline: false }
-                        ],
-                        thumbnail: { url: newData.img },
-                        footer: { text: "資料來源: Nexon API 強制重新掃描" }
-                    }]
-                };
-
+            // Discord 通知
+            if (DISCORD_WEBHOOK_URL) {
                 await fetch(DISCORD_WEBHOOK_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dcPayload)
+                    body: JSON.stringify({
+                        username: "MSW 管理員",
+                        embeds: [{
+                            title: "✅ 資料同步完成",
+                            color: 3066993,
+                            fields: [
+                                { name: "商品", value: newData.keyword, inline: true },
+                                { name: "價格", value: `${newData.wc} WC`, inline: true },
+                                { name: "作者", value: `\`${newData.author}\``, inline: false }
+                            ],
+                            thumbnail: { url: newData.img }
+                        }]
+                    })
                 });
             }
 

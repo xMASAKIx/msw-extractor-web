@@ -1,39 +1,43 @@
-import asyncio
-from playwright.async_api import async_playwright
+import json
+import os
 
-async def run():
-    async with async_playwright() as p:
-        # 開啟瀏覽器 (headless=False 讓你看得到畫面)
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context()
-        page = await context.new_page()
+# 定義檔案路徑
+JSON_PATH = r"C:\Users\admin\AppData\Roaming\Godot\app_userdata\CY_WCNM\saved_accounts.json"
 
-        print("🚀 正在開啟 Nexon 登入頁面...")
-        await page.goto("https://maplestoryworlds.nexon.com/")
+def get_current_credential():
+    if not os.path.exists(JSON_PATH):
+        print(f"❌ 找不到路徑: {JSON_PATH}")
+        return
 
-        print("👉 請在瀏覽器中完成登入動作...")
+    try:
+        with open(JSON_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
         
-        # 等待使用者登入成功（這裡監控 localStorage 或是特定 API 出現）
-        while True:
-            # 檢查 localStorage 裡是否有 token
-            token = await page.evaluate("localStorage.getItem('mod-accesstoken')")
-            user_id = await page.evaluate("localStorage.getItem('mod-user-id')")
-            
-            if token and user_id:
-                print("\n✅ 成功抓取 Token！")
-                print(f"User ID: {user_id}")
-                print(f"Access Token: {token[:30]}...")
-                
-                # 你可以讓它自動存成一個可以用於網頁匯入的 JSON
-                with open("msw_token.json", "w") as f:
-                    f.write(f'{{"user_id": "{user_id}", "token": "{token}"}}')
-                
-                print("\n💾 已儲存至 msw_token.json")
-                break
-            
-            await asyncio.sleep(2)
+        current_id = data.get("current_account")
+        accounts = data.get("accounts", [])
+        
+        # 在列表中尋找與 current_account 匹配的資料
+        target_account = next((acc for acc in accounts if acc["user_id"] == current_id), None)
 
-        print("程序結束，可以關閉瀏覽器。")
-        await browser.close()
+        if target_account:
+            print(f"✨ 偵測到當前帳號: {target_account['nickname']}")
+            print(f"🆔 User ID: {target_account['user_id']}")
+            print(f"🔑 Token: {target_account['access_token'][:15]}...")
+            
+            # 輸出成網頁端可用的格式
+            result = {
+                "user_id": target_account['user_id'],
+                "access_token": target_account['access_token']
+            }
+            
+            with open("msw_token.json", "w", encoding='utf-8') as f:
+                json.dump(result, f, indent=4)
+            print("\n✅ 已將當前憑證存入 msw_token.json")
+        else:
+            print("⚠️ 找不到與 current_account 匹配的帳號資料")
 
-asyncio.run(run())
+    except Exception as e:
+        print(f"❌ 讀取失敗: {e}")
+
+if __name__ == "__main__":
+    get_current_credential()

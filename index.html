@@ -132,6 +132,7 @@
                     priceUnit: realData ? "wc" : "",
                     itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                     img: item.itemImageUrl || item.itemThumbnailUrl,
+                    sellerPpsn: realData ? realData.sellerPpsn : "",
                     authorDisplay: realData 
                         ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
                         : "未上架"
@@ -203,7 +204,7 @@
                 "img": itemData.img,
                 "keyword": itemData.name,
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price),
-                "author": sellerPpsn
+                "author": String(itemData.sellerPpsn || "")
             };
     
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);

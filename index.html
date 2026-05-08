@@ -45,18 +45,18 @@
             <div class="card">
                 <h3>🔑 憑證管理</h3>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4>Nexon 帳號</h4>
-                    <!-- 增加一個小按鈕來觸發檔案選取 -->
-                    <button id="btn_import_json" style="font-size: 11px; padding: 2px 8px; cursor: pointer; background: #3f3f46; color: white; border: 1px solid #52525b; border-radius: 4px;">📂 匯入 JSON</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="margin: 0;">Nexon 帳號</h4>
+                    <!-- 隱藏的 file input -->
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
+                    <!-- 觸發按鈕 -->
+                    <button id="btn_import" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
                 </div>
         
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
+                <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
                 
-                <p id="import_info" style="font-size:11px; color:#4ade80; margin-top:5px; display:none;"></p>
-        
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
                 
                 <h4>GitHub 配置</h4>

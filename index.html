@@ -202,7 +202,8 @@
                 "id": String(itemData.itemId),
                 "img": itemData.img,
                 "keyword": itemData.name,
-                "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price)
+                "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price),
+                "author": sellerPpsn
             };
     
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);

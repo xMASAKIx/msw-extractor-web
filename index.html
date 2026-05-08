@@ -207,8 +207,8 @@
                 "wc": itemData.price === "未知" ? 0 : parseInt(itemData.price),
                 "author": String(itemData.sellerPpsn || "") // 💡 增加這一行
             };
-    // 🔍 除錯用：看上傳前最後的物件長怎樣
-        console.log("準備上傳的資料:", newData);
+                // 🔍 除錯用：看上傳前最後的物件長怎樣
+                console.log("準備上傳的資料:", newData);
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);
             if (existsIndex > -1) {
                 currentItems[existsIndex] = newData;

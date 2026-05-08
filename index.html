@@ -125,21 +125,24 @@
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 
-                // 1. 抓取商城詳細資料
+                // 1. 抓取商城詳細資料 (此時會執行強制重新提取)
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 
-                // 2. 重新建構 displayData (確保欄位正確，包含你要的 sellerPpsn)
+                // 2. 重新建構 displayData 
                 const displayData = {
                     name: item.itemName,
-                    price: realData ? realData.price : "未知",
-                    priceUnit: realData ? "wc" : "",
-                    itemId: realData ? realData.itemId : (item.itemId || "未上架"),
+                    // 優先使用商城抓到的價格，若無則顯示未知
+                    price: realData?.price !== undefined ? realData.price : "未知",
+                    priceUnit: (realData && realData.price !== "未上架") ? "wc" : "",
+                    itemId: realData?.itemId || item.itemId || "未上架",
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    // 這裡就是你之後要同步用的欄位
-                    sellerPpsn: realData ? (realData.sellerPpsn || "") : "", 
-                    authorDisplay: realData 
-                        ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
-                        : "未上架"
+                    
+                    // 💡 關鍵：確保這裡有抓到 sellerPpsn，同步時才會有 author
+                    sellerPpsn: realData?.sellerPpsn || "", 
+                    
+                    authorDisplay: (realData && realData.profileCode) 
+                        ? `${realData.nickname}#${realData.profileCode}` 
+                        : (realData?.nickname || "未上架")
                 };
 
                 // 3. 建立並顯示卡片 (確保變數讀取正確)

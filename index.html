@@ -124,33 +124,54 @@
             const rawItems = await NexonAPI.getEquipList(input);
             for (let item of rawItems) {
                 status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
+                
+                // 1. 抓取商城詳細資料
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 
+                // 2. 重新建構 displayData (確保欄位正確，包含你要的 sellerPpsn)
                 const displayData = {
                     name: item.itemName,
                     price: realData ? realData.price : "未知",
                     priceUnit: realData ? "wc" : "",
                     itemId: realData ? realData.itemId : (item.itemId || "未上架"),
                     img: item.itemImageUrl || item.itemThumbnailUrl,
-                    // 💡 重要：這裡要從 realData 提取 sellerPpsn
-                    sellerPpsn: realData ? realData.sellerPpsn : "", 
+                    // 這裡就是你之後要同步用的欄位
+                    sellerPpsn: realData ? (realData.sellerPpsn || "") : "", 
                     authorDisplay: realData 
                         ? `${realData.nickname || '未知'}${realData.profileCode ? '#' + realData.profileCode : ''}` 
                         : "未上架"
                 };
 
+                // 3. 建立並顯示卡片 (確保變數讀取正確)
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div><button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button></div>
+                    <div class="info-row">
+                        <div class="info-label">📝 名稱</div>
+                        <div class="info-value">${displayData.name}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                    </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.authorDisplay}</div><button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button></div>
-                    <div class="info-row"><div class="info-label">🆔 商品 ID</div><div class="info-value">${displayData.itemId}</div><button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button></div>
-                    <div class="info-row"><div class="info-label">🖼️ 縮圖網址</div><div class="info-value">${displayData.img}</div><button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button></div>
+                    <div class="info-row">
+                        <div class="info-label">👤 作者</div>
+                        <div class="info-value">${displayData.authorDisplay}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
+                // 綁定同步按鈕
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }

@@ -52,20 +52,21 @@ const NexonAPI = {
         if (isId) {
             url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
         } else {
-            url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}`;
+            // 搜尋時加入亂數標籤，強制 Nexon 伺服器回傳最新結果
+            url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}&_cb=${Date.now()}`;
         }
 
         try {
             const res = await this.proxyFetch(url);
-            const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0]);
+            // 這裡要相容不同的資料結構
+            const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0] || res?.data?.[0]);
 
-            if (d && d.sellerPpsn) {
-                // --- 關鍵修改：拿到 PPSN 後，多跑一個請求去抓 5 碼 ID ---
-                const profile = await this.getProfileDetail(d.sellerPpsn);
+            if (d) {
+                const profile = d.sellerPpsn ? await this.getProfileDetail(d.sellerPpsn) : null;
                 
                 return {
-                    price: d.itemPrice ?? d.targetPrice ?? 0,
-                    sellerPpsn: d.sellerPpsn,
+                    price: d.itemPrice ?? d.targetPrice ?? d.price ?? "未知",
+                    sellerPpsn: d.sellerPpsn || "",
                     nickname: profile?.profileName || d.nickname || d.profileName || "未知",
                     profileCode: profile?.profileCode || d.profileCode || "", 
                     itemId: d.itemId || d.id || input
@@ -74,7 +75,8 @@ const NexonAPI = {
         } catch (e) { 
             console.error("獲取商品詳情失敗", e); 
         }
-        return null;
+        // 如果商城完全搜不到，至少回傳一個帶有 ID 的基本物件，避免畫面壞掉
+        return { price: "未上架", sellerPpsn: "", nickname: "未知", profileCode: "", itemId: input };
     },
 
     async getPpsnByCode(profileCode) {

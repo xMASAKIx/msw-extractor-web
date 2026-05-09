@@ -176,7 +176,7 @@
     };
 
     // 5. 掃描裝備邏輯
-    document.getElementById('btn_search').onclick = async function() {
+    document.getElementById('btn_search').onclick = a function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
@@ -235,10 +235,10 @@
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
-                    <button class="btn-sync">🚀 同步至 GitHub & DC</button>
+                    <button class="btn-">🚀 同步至 GitHub & DC</button>
                 `;
 
-                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+                card.querySelector('.btn-').onclick = (e) => (e.target, displayData);
                 grid.appendChild(card);
             }
             status.innerText = `✅ 提取完成 (時間: ${new Date().toLocaleTimeString()})`;
@@ -303,26 +303,7 @@
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
 
-            // Discord 通知
-            if (DISCORD_WEBHOOK_URL) {
-                await fetch(DISCORD_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: "MSW 管理員",
-                        embeds: [{
-                            title: "✅ 資料同步完成",
-                            color: 3066993,
-                            fields: [
-                                { name: "商品", value: newData.keyword, inline: true },
-                                { name: "價格", value: `${newData.wc} WC`, inline: true },
-                                { name: "作者", value: `\`${newData.author}\``, inline: false }
-                            ],
-                            thumbnail: { url: newData.img }
-                        }]
-                    })
-                });
-            }
+            // --- 重複的 Discord Webhook 通知已移除 ---
 
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);

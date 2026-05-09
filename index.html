@@ -44,24 +44,18 @@
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
-                
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <h4 style="margin: 0;">Nexon 帳號</h4>
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
-                    <!-- 直接綁定點擊事件，防止 JS 載入延遲失效 -->
                     <button id="btn_import" onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
                 </div>
-        
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
                 <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
-                
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
-                
                 <h4>GitHub 配置</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
                 <p style="font-size:11px; color:#666; margin-top:-5px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
-                
                 <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
         </div>
@@ -75,8 +69,6 @@
         repo: "MSW-ID",
         path: "data.json"
     };
-    
-    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1502607241528737843/C_dctvuMZHG4KV2kvwKDgQHeOa31nu5YEHbQ1INzJmO0gQqQVCoMpH7MuT2kwXF0LF5U";
 
     // 2. 頁面載入邏輯
     window.onload = () => {
@@ -87,12 +79,9 @@
                 statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
             }
         }
-        
-        // 載入 GitHub Token
         const savedGhToken = localStorage.getItem('github_token_v1');
         if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
 
-        // 載入 Nexon 帳號
         const savedAccounts = localStorage.getItem('msw_accounts_v1');
         if (savedAccounts) {
             try {
@@ -106,17 +95,14 @@
         initImportFeature();
     };
 
-    // 3. 匯入功能邏輯
     function initImportFeature() {
         const fileSelector = document.getElementById('file_selector');
         const importStatus = document.getElementById('import_status');
-
         if (!fileSelector) return;
 
         fileSelector.onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
@@ -124,28 +110,21 @@
                     const currentId = data.current_account;
                     const accounts = data.accounts || [];
                     const activeAccount = accounts.find(acc => acc.user_id === currentId);
-
                     if (activeAccount) {
                         const token = activeAccount.access_token;
                         const userId = activeAccount.user_id;
-
                         document.getElementById('token_input').value = token;
                         document.getElementById('userid_input').value = userId;
-                        
                         if (importStatus) {
                             importStatus.innerText = `✅ 已自動儲存：${activeAccount.nickname || userId}`;
                             importStatus.style.display = 'block';
                         }
-
-                        // 直接幫你儲存，不用再按儲存憑證
                         localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: userId, token: token}]));
                     } else {
-                        alert('❌ 找不到目前啟用的帳號 (current_account)');
+                        alert('❌ 找不到目前啟用的帳號');
                     }
-                } catch (err) {
-                    alert('❌ JSON 檔案解析失敗');
-                }
-                fileSelector.value = ''; // 重置以利下次選取
+                } catch (err) { alert('❌ JSON 檔案解析失敗'); }
+                fileSelector.value = '';
             };
             reader.readAsText(file);
         };
@@ -159,24 +138,17 @@
         });
     }
 
-    // 4. 手動儲存憑證
     document.getElementById('btn_save').onclick = () => {
         const nToken = document.getElementById('token_input').value.trim();
         const nUser = document.getElementById('userid_input').value.trim();
         const gToken = document.getElementById('gh_token_input').value.trim();
-
-        if (nToken && nUser) {
-            localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
-        }
-        if (gToken) {
-            localStorage.setItem('github_token_v1', gToken);
-        }
-
+        if (nToken && nUser) localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
+        if (gToken) localStorage.setItem('github_token_v1', gToken);
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
     // 5. 掃描裝備邏輯
-    document.getElementById('btn_search').onclick = a function() {
+    document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
@@ -184,20 +156,18 @@
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在強制重新提取最新穿戴清單...";
+        status.innerText = "🔄 正在提取最新穿戴清單...";
         grid.innerHTML = "";
 
         try {
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
-                status.innerText = "⚠️ 找不到穿戴中的裝備 (或請確認憑證)";
+                status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
             for (let item of rawItems) {
-                status.innerText = `⏳ 正在比對商城資料: ${item.itemName}...`;
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
-                
                 const displayData = {
                     name: item.itemName,
                     price: realData?.price !== undefined ? realData.price : "未知",
@@ -230,24 +200,17 @@
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
-                    <button class="btn-">🚀 同步至 GitHub & DC</button>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
-                card.querySelector('.btn-').onclick = (e) => (e.target, displayData);
+                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 提取完成 (時間: ${new Date().toLocaleTimeString()})`;
-        } catch (err) {
-            status.innerText = "❌ 錯誤: " + err.message;
-        }
+            status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
+        } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
 
-    // 6. 同步函式
+    // 6. 同步函式 (僅 GitHub，無 Discord 呼叫)
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
@@ -302,8 +265,6 @@
             });
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
-
-            // --- 重複的 Discord Webhook 通知已移除 ---
 
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);

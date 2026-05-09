@@ -200,7 +200,12 @@
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
+                    <button class="btn-">🚀 同步至 GitHub & DC</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);

@@ -63,14 +63,12 @@
 </div>
 
 <script>
-    // 1. 基礎配置
     const GITHUB_CONFIG = {
         owner: "xmasakix",
         repo: "MSW-ID",
         path: "data.json"
     };
 
-    // 2. 頁面載入邏輯
     window.onload = () => {
         if (typeof NexonAPI === 'undefined') {
             const statusBar = document.getElementById('status-bar');
@@ -147,7 +145,6 @@
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
-    // 5. 掃描裝備邏輯
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
@@ -205,7 +202,7 @@
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
-                    <button class="btn-">🚀 同步至 GitHub & DC</button>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
@@ -215,7 +212,6 @@
         } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
 
-    // 6. 同步函式 (僅 GitHub，無 Discord 呼叫)
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";

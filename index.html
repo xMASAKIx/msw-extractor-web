@@ -9,7 +9,7 @@
         .container { max-width: 1200px; margin: 0 auto; }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         
-        /* 搜尋列：對齊 */
+        /* 搜尋列 */
         .search-group { display: flex; gap: 10px; align-items: center; }
         input { 
             background: #27272a; border: 1px solid #3f3f46; color: white; 
@@ -22,7 +22,7 @@
             height: 45px; display: flex; align-items: center; justify-content: center;
         }
         
-        /* 圖二：玩家資訊 */
+        /* 圖二：搜尋結果目標玩家資訊 */
         .profile-bar { display: none; align-items: center; gap: 20px; background: #1c1c21; padding: 20px; border-radius: 15px; border: 1px solid #3b82f644; margin-bottom: 20px; }
         .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; background: #000; }
         .profile-data { display: flex; flex-direction: column; gap: 5px; }
@@ -98,7 +98,6 @@
 <script>
     const GITHUB_CONFIG = { owner: "xmasakix", repo: "MSW-ID", path: "data.json" };
 
-    // 初始化快取
     window.onload = () => {
         const savedGhToken = localStorage.getItem('github_token_v1');
         if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
@@ -132,7 +131,9 @@
         pBar.style.display = "none";
 
         try {
-            fetchTargetProfile(input);
+            // 正確呼叫圖二 Profile API
+            await fetchTargetProfile(input);
+
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到裝備";
@@ -146,11 +147,12 @@
         } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
 
+    // 關鍵修正：確保圖二資料被填入
     async function fetchTargetProfile(idOrPpsn) {
         try {
             const response = await fetch(`https://mverse-api.nexon.com/social/v1/profile/${idOrPpsn}`);
             const res = await response.json();
-            if (res?.data) {
+            if (res && res.data) {
                 const p = res.data;
                 document.getElementById('p_img').src = p.profileImageUrl || '';
                 document.getElementById('p_name').innerText = p.profileName || '未知';
@@ -158,7 +160,7 @@
                 document.getElementById('p_ppsn_val').innerText = p.ppsn || idOrPpsn;
                 document.getElementById('target_profile').style.display = "flex";
             }
-        } catch (e) {}
+        } catch (e) { console.error("Profile API Error", e); }
     }
 
     function renderCard(item, real, container) {
@@ -202,7 +204,6 @@
         container.appendChild(card);
     }
 
-    // 補回完整的 GitHub 同步邏輯
     async function syncToGithub(btn, data) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
@@ -237,13 +238,9 @@
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
-        } catch (err) {
-            alert(err.message);
-            btn.innerText = originalText; btn.disabled = false;
-        }
+        } catch (err) { alert(err.message); btn.innerText = originalText; btn.disabled = false; }
     }
 
-    // 補回完整的 JSON 匯入邏輯
     function initImportFeature() {
         document.getElementById('file_selector').onchange = function(e) {
             const file = e.target.files[0];
@@ -256,12 +253,11 @@
                     if (acc) {
                         document.getElementById('token_input').value = acc.access_token;
                         document.getElementById('userid_input').value = acc.user_id;
-                        const status = document.getElementById('import_status');
-                        status.innerText = `✅ 已載入：${acc.nickname}`;
-                        status.style.display = 'block';
+                        document.getElementById('import_status').innerText = `✅ 已載入：${acc.nickname}`;
+                        document.getElementById('import_status').style.display = 'block';
                         localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: acc.user_id, token: acc.access_token}]));
                     }
-                } catch (err) { alert('解析失敗'); }
+                } catch (e) { alert('解析失敗'); }
             };
             reader.readAsText(file);
         };

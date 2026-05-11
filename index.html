@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>MSW 裝備管理器 Pro</title>
     <script src="js/nexon_api.js"></script>
+    <script src="js/user_api.js"></script>
     <style>
         body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -24,6 +25,11 @@
         .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
         #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
         h4 { margin: 10px 0 8px 0; color: #808ca6; font-size: 12px; text-transform: uppercase; }
+
+        /* --- 新增：圖二用戶資料 CSS --- */
+        .profile-bar { display: none; align-items: center; background: #1c1c21; padding: 15px; border-radius: 12px; border: 1px solid #3b82f644; margin-bottom: 20px; gap: 20px; }
+        .profile-avatar { width: 60px; height: 60px; background: #000; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; }
+        .profile-info { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 15px; }
     </style>
 </head>
 <body>
@@ -39,6 +45,16 @@
                 </div>
                 <div id="status-bar" style="margin-top: 15px;"></div>
             </div>
+
+            <div id="target_profile" class="profile-bar">
+                <img id="p_img" class="profile-avatar" src="">
+                <div class="profile-info">
+                    <div><h4>Nickname</h4><div id="p_name" class="info-value">---</div></div>
+                    <div><h4>Profile Code</h4><div id="p_code" class="info-value">---</div></div>
+                    <div><h4>PPSN</h4><div id="p_ppsn" class="info-value">---</div></div>
+                </div>
+            </div>
+
             <div id="equip_list" class="item-grid"></div>
         </div>
         <div class="right">
@@ -70,7 +86,6 @@
     };
 
     window.onload = () => {
-        // 新增：監聽 Enter 鍵搜尋
         document.getElementById('target_input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 document.getElementById('btn_search').click();
@@ -152,18 +167,32 @@
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
+    // --- 修改後的搜尋邏輯 (整合 UserAPI) ---
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
+        const pBar = document.getElementById('target_profile');
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在提取最新穿戴清單...";
+        status.innerText = "🔄 正在提取資料...";
         grid.innerHTML = "";
+        pBar.style.display = "none"; // 初始隱藏用戶資訊
 
         try {
+            // 執行分流邏輯
+            // 1. 抓取用戶資訊 (圖二)
+            UserAPI.getProfile(input).then(data => {
+                pBar.style.display = "flex";
+                document.getElementById('p_img').src = data.profileImageUrl || '';
+                document.getElementById('p_name').innerText = data.nickname || '---';
+                document.getElementById('p_code').innerText = `#${data.profileCode || '---'}`;
+                document.getElementById('p_ppsn').innerText = data.ppsn || '---';
+            }).catch(e => console.error("Profile 載入失敗:", e));
+
+            // 2. 抓取並渲染裝備列表 (原邏輯)
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到穿戴中的裝備";
@@ -219,11 +248,11 @@
         } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
 
+    // 原始 sync 函數保持不變...
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
-        
         try {
             const token = localStorage.getItem('github_token_v1');
             const { owner, repo, path } = GITHUB_CONFIG;
@@ -273,10 +302,8 @@
             });
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
-
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
-
         } catch (err) {
             alert("❌ 失敗: " + err.message);
             btn.innerText = originalText;

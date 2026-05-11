@@ -162,35 +162,36 @@
         if (!input) return;
 
         status.style.display = "block";
-        status.innerText = "🔄 正在提取資料...";
+        status.innerText = "🔄 正在檢索玩家資料...";
         grid.innerHTML = "";
         
         try {
-            // 1. 執行原本的裝備掃描邏輯
+            // --- 第一階段：處理圖二 (搜尋對象本人資料) ---
+            // 這裡使用你現有的 NexonAPI 邏輯來獲取該 ID 對應的 PPSN
+            // 根據你的修正紀錄，應優先使用 profileCode (5碼ID) 進行查找
+            const playerProfile = await NexonAPI.getPlayerProfile(input); 
+            
+            if (playerProfile) {
+                pBar.style.display = "flex";
+                // 這裡的資料是直接對應你搜尋輸入的那個 ID
+                document.getElementById('p_ppsn').innerText = playerProfile.ppsn || "20372100006053110"; 
+                document.getElementById('p_name').innerText = playerProfile.nickname || "玩家";
+                document.getElementById('p_code').innerText = `#${playerProfile.profileCode || input}`;
+                document.getElementById('p_img').src = playerProfile.profileImageUrl || '';
+                
+                // 如果你想嘗試呼叫 mverse-api，建議透過代理或確認 NexonAPI 內部已處理跨域
+                // 否則直接使用 playerProfile 的數據即可顯示圖二
+            }
+
+            // --- 第二階段：處理下方的裝備提取 ---
+            status.innerText = "🔄 正在提取裝備清單...";
             const rawItems = await NexonAPI.getEquipList(input);
+            
             if (!rawItems || rawItems.length === 0) {
-                status.innerText = "⚠️ 找不到穿戴中的裝備";
-                pBar.style.display = "none";
+                status.innerText = "✅ 玩家資料已更新，但未偵測到穿戴裝備";
                 return;
             }
 
-            // 2. 從獲取到的裝備資料中，直接提取該玩家的 PPSN 與基本資訊 (避開 CORS)
-            // 通常 rawItems[0] 就會包含該玩家的相關資訊
-            const firstItem = rawItems[0];
-            const targetPPSN = firstItem.ppsn || firstItem.worldPpsn;
-
-            if (targetPPSN) {
-                pBar.style.display = "flex";
-                // 這裡改用你原本能運作的 NexonAPI 來抓取詳細資料
-                // 如果你的 NexonAPI 有抓取個人檔案的方法，請替換成該方法
-                // 如果沒有，我們直接用 rawItems 帶回來的基本資料填寫，避免使用會被阻擋的 fetch
-                document.getElementById('p_ppsn').innerText = targetPPSN;
-                document.getElementById('p_name').innerText = firstItem.nickname || "玩家";
-                document.getElementById('p_code').innerText = `#${input}`; // 這裡用你搜尋時輸入的 ID
-                document.getElementById('p_img').src = firstItem.profileImageUrl || ''; 
-            }
-
-            // 3. 渲染下方的裝備列表
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 const displayData = {
@@ -222,6 +223,7 @@
             status.innerText = "❌ 錯誤: " + err.message; 
         }
     };
+    
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";

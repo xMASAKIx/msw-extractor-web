@@ -13,7 +13,7 @@
         .btn-primary { background: #3b82f6; color: white; }
         .btn-save { background: #10b981; color: white; }
         
-        /* 圖二玩家資料橫條樣式 */
+        /* 圖二玩家資料顯示區域樣式 */
         .profile-bar { 
             display: none; 
             align-items: center; 
@@ -51,7 +51,7 @@
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN" style="height: 45px; margin-bottom: 0;">
+                    <input type="text" id="target_input" placeholder="輸入 PPSN (用於獲取玩家資料與裝備)" style="height: 45px; margin-bottom: 0;">
                     <button id="btn_search" class="btn-primary" style="width: 150px; height: 45px;">掃描裝備</button>
                 </div>
                 <div id="status-bar" style="margin-top: 15px;"></div>
@@ -118,7 +118,7 @@
         initImportFeature();
     };
 
-    // 新增：Enter 鍵搜尋
+    // Enter 鍵觸發搜尋
     document.getElementById('target_input').onkeydown = (e) => {
         if (e.key === 'Enter') document.getElementById('btn_search').click();
     };
@@ -184,33 +184,36 @@
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在提取最新穿戴清單...";
+        status.innerText = "🔄 正在提取最新資料與穿戴清單...";
         grid.innerHTML = "";
         pBar.style.display = "none";
 
         try {
-            // 完全保留你原本的 API 呼叫
+            // 1. 取得圖二資料 (MVerse API)
+            try {
+                const pRes = await fetch(`https://mverse-api.nexon.com/social/v1/profile/${input}`);
+                if (pRes.ok) {
+                    const pData = await pRes.json();
+                    const profile = pData.data;
+                    if (profile) {
+                        document.getElementById('p_img').src = profile.profileImageUrl || '';
+                        document.getElementById('p_name').innerText = profile.nickname || '未知';
+                        document.getElementById('p_code').innerText = `#${profile.profileCode || ''}`;
+                        document.getElementById('p_ppsn').innerText = input;
+                        pBar.style.display = "flex";
+                    }
+                }
+            } catch (pErr) { console.error("獲取玩家資料失敗", pErr); }
+
+            // 2. 獲取裝備清單 (完全保留原本 API 邏輯)
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
-            let profileUpdated = false;
-
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
-                
-                // 圖二資料自動填充：利用搜尋到的第一個有效商品資料來更新上方玩家資訊
-                if (!profileUpdated && realData && realData.profileCode) {
-                    document.getElementById('p_img').src = item.itemImageUrl || item.itemThumbnailUrl; // 暫用商品圖或你可以換成頭像
-                    document.getElementById('p_name').innerText = realData.nickname || '未知';
-                    document.getElementById('p_code').innerText = `#${realData.profileCode}`;
-                    document.getElementById('p_ppsn').innerText = realData.sellerPpsn || '';
-                    pBar.style.display = "flex";
-                    profileUpdated = true;
-                }
-
                 const displayData = {
                     name: item.itemName,
                     price: realData?.price !== undefined ? realData.price : "未知",

@@ -13,7 +13,7 @@
         .btn-primary { background: #3b82f6; color: white; }
         .btn-save { background: #10b981; color: white; }
         
-        /* 玩家資訊橫條樣式 (圖二) */
+        /* 圖二玩家資料橫條樣式 */
         .profile-bar { 
             display: none; 
             align-items: center; 
@@ -118,11 +118,9 @@
         initImportFeature();
     };
 
-    // 新增：搜尋裝備 ENTER 監聽
+    // 新增：Enter 鍵搜尋
     document.getElementById('target_input').onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            document.getElementById('btn_search').click();
-        }
+        if (e.key === 'Enter') document.getElementById('btn_search').click();
     };
 
     function initImportFeature() {
@@ -182,33 +180,37 @@
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
-        const pBar = document.getElementById('target_profile'); // 圖二資料橫條
+        const pBar = document.getElementById('target_profile');
 
         if (!input) return;
         status.style.display = "block";
         status.innerText = "🔄 正在提取最新穿戴清單...";
         grid.innerHTML = "";
-        pBar.style.display = "none"; // 初始隱藏橫條
+        pBar.style.display = "none";
 
         try {
-            // 獲取並顯示玩家 Profile (圖二資料)
-            const p = await NexonAPI.getPlayerProfile(input);
-            if (p) {
-                document.getElementById('p_img').src = p.profileImageUrl || '';
-                document.getElementById('p_name').innerText = p.profileName || '未知';
-                document.getElementById('p_code').innerText = `#${p.profileCode || ''}`;
-                document.getElementById('p_ppsn').innerText = p.ppsn || '';
-                pBar.style.display = "flex"; // 顯示橫條
-            }
-
+            // 完全保留你原本的 API 呼叫
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
+            let profileUpdated = false;
+
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
+                
+                // 圖二資料自動填充：利用搜尋到的第一個有效商品資料來更新上方玩家資訊
+                if (!profileUpdated && realData && realData.profileCode) {
+                    document.getElementById('p_img').src = item.itemImageUrl || item.itemThumbnailUrl; // 暫用商品圖或你可以換成頭像
+                    document.getElementById('p_name').innerText = realData.nickname || '未知';
+                    document.getElementById('p_code').innerText = `#${realData.profileCode}`;
+                    document.getElementById('p_ppsn').innerText = realData.sellerPpsn || '';
+                    pBar.style.display = "flex";
+                    profileUpdated = true;
+                }
+
                 const displayData = {
                     name: item.itemName,
                     price: realData?.price !== undefined ? realData.price : "未知",

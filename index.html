@@ -162,33 +162,29 @@
         if (!input) return;
 
         status.style.display = "block";
-        status.innerText = "🔄 正在檢索玩家資料...";
+        status.innerText = "🔄 正在處理請求...";
         grid.innerHTML = "";
         
         try {
-            // --- 第一階段：處理圖二 (搜尋對象本人資料) ---
-            // 這裡使用你現有的 NexonAPI 邏輯來獲取該 ID 對應的 PPSN
-            // 根據你的修正紀錄，應優先使用 profileCode (5碼ID) 進行查找
-            const playerProfile = await NexonAPI.getPlayerProfile(input); 
+            // --- 第一部分：處理圖二 (僅針對搜尋輸入的 ID) ---
+            // 直接根據輸入的 ID 抓取個人資料 API，不參考任何裝備數據
+            // 這裡假設 NexonAPI.request 是你用來繞過 CORS 的請求方法
+            const profileResponse = await NexonAPI.request(`https://mverse-api.nexon.com/social/v1/profile/${input}`);
             
-            if (playerProfile) {
+            if (profileResponse && profileResponse.data) {
+                const pData = profileResponse.data;
                 pBar.style.display = "flex";
-                // 這裡的資料是直接對應你搜尋輸入的那個 ID
-                document.getElementById('p_ppsn').innerText = playerProfile.ppsn || "20372100006053110"; 
-                document.getElementById('p_name').innerText = playerProfile.nickname || "玩家";
-                document.getElementById('p_code').innerText = `#${playerProfile.profileCode || input}`;
-                document.getElementById('p_img').src = playerProfile.profileImageUrl || '';
-                
-                // 如果你想嘗試呼叫 mverse-api，建議透過代理或確認 NexonAPI 內部已處理跨域
-                // 否則直接使用 playerProfile 的數據即可顯示圖二
+                // 這裡顯示的是你搜尋時輸入的 ID 對應的 PPSN (例如 20372100006053110)
+                document.getElementById('p_ppsn').innerText = pData.ppsn || ""; 
+                document.getElementById('p_name').innerText = pData.nickname || "";
+                document.getElementById('p_code').innerText = `#${pData.profileCode || input.toUpperCase()}`;
+                document.getElementById('p_img').src = pData.profileImageUrl || '';
             }
 
-            // --- 第二階段：處理下方的裝備提取 ---
-            status.innerText = "🔄 正在提取裝備清單...";
+            // --- 第二部分：處理裝備列表 (維持原樣) ---
             const rawItems = await NexonAPI.getEquipList(input);
-            
             if (!rawItems || rawItems.length === 0) {
-                status.innerText = "✅ 玩家資料已更新，但未偵測到穿戴裝備";
+                status.innerText = "⚠️ 找不到穿戴裝備";
                 return;
             }
 
@@ -221,6 +217,7 @@
             status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
         } catch (err) { 
             status.innerText = "❌ 錯誤: " + err.message; 
+            console.error("執行失敗:", err);
         }
     };
     

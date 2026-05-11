@@ -24,10 +24,12 @@
             border: 1px solid #3b82f644; 
             margin-bottom: 20px; 
         }
-        .profile-img { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; }
+        .profile-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; background: #000; }
+        .p-info { display: flex; flex-direction: column; gap: 4px; }
         .p-name { font-size: 20px; font-weight: bold; color: #fff; }
-        .p-code { color: #3b82f6; font-family: monospace; font-size: 18px; margin: 0 10px; }
-        .p-ppsn { color: #808ca6; font-size: 14px; font-family: monospace; }
+        .p-sub { display: flex; align-items: center; gap: 10px; }
+        .p-code { color: #3b82f6; font-family: monospace; font-size: 16px; font-weight: bold; }
+        .p-ppsn { color: #808ca6; font-size: 13px; font-family: monospace; }
 
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
@@ -37,8 +39,8 @@
         .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
         .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
         .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
-        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; }
-        .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
+        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; border: none; cursor: pointer; }
+        .btn-sync { background: #7359cc; color: white; margin-top: 15px; width: 100%; cursor: pointer; border-radius: 8px; padding: 12px; border: none; }
         #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
     </style>
 </head>
@@ -50,7 +52,7 @@
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 PPSN" style="height: 45px; margin-bottom: 0;">
+                    <input type="text" id="target_input" placeholder="輸入搜尋對象 (PPSN)" style="height: 45px; margin-bottom: 0;">
                     <button id="btn_search" class="btn-primary" style="width: 150px; height: 45px;">掃描裝備</button>
                 </div>
                 <div id="status-bar" style="margin-top: 15px;"></div>
@@ -58,18 +60,23 @@
 
             <div id="target_profile" class="profile-bar">
                 <img id="p_img" src="" class="profile-img">
-                <div id="p_name" class="p-name"></div>
-                <div id="p_code" class="p-code"></div>
-                <div id="p_ppsn" class="p-ppsn"></div>
+                <div class="p-info">
+                    <div id="p_name" class="p-name">載入中...</div>
+                    <div class="p-sub">
+                        <div id="p_code" class="p-code">#-----</div>
+                        <div id="p_ppsn" class="p-ppsn"></div>
+                    </div>
+                </div>
             </div>
 
             <div id="equip_list" class="item-grid"></div>
         </div>
+        
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h4>Nexon 帳號</h4>
+                    <h4 style="margin: 0; font-size: 12px; color: #808ca6;">Nexon 帳號</h4>
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
                     <button onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
                 </div>
@@ -77,7 +84,7 @@
                 <input type="text" id="userid_input" placeholder="UserId">
                 <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
-                <h4>GitHub 配置</h4>
+                <h4 style="margin: 10px 0 8px 0; color: #808ca6; font-size: 12px;">GitHub 配置</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
                 <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
@@ -158,24 +165,29 @@
         status.style.display = "block";
         status.innerText = "🔄 正在提取資料...";
         grid.innerHTML = "";
-        pBar.style.display = "none";
+        
+        // 1. 先顯示橫條並清空內容 (圖二)
+        pBar.style.display = "flex";
+        document.getElementById('p_name').innerText = "載入中...";
+        document.getElementById('p_code').innerText = "#-----";
+        document.getElementById('p_ppsn').innerText = input;
 
-        // 優先獨立抓取圖二資料 (MVerse API)
-        try {
-            const pRes = await fetch(`https://mverse-api.nexon.com/social/v1/profile/${input}`);
-            if (pRes.ok) {
-                const pData = await pRes.json();
-                if (pData.data) {
-                    document.getElementById('p_img').src = pData.data.profileImageUrl;
-                    document.getElementById('p_name').innerText = pData.data.nickname;
-                    document.getElementById('p_code').innerText = `#${pData.data.profileCode}`;
-                    document.getElementById('p_ppsn').innerText = input;
-                    pBar.style.display = "flex";
+        // 2. 異步抓取圖二 MVerse 資料
+        fetch(`https://mverse-api.nexon.com/social/v1/profile/${input}`)
+            .then(res => res.json())
+            .then(pData => {
+                if (pData && pData.data) {
+                    document.getElementById('p_img').src = pData.data.profileImageUrl || '';
+                    document.getElementById('p_name').innerText = pData.data.nickname || '未知';
+                    document.getElementById('p_code').innerText = `#${pData.data.profileCode || ''}`;
                 }
-            }
-        } catch (e) { console.error("圖二 API 錯誤", e); }
+            })
+            .catch(e => {
+                console.error("圖二 API 失敗", e);
+                document.getElementById('p_name').innerText = "無法獲取玩家資料";
+            });
 
-        // 原本的裝備掃描邏輯
+        // 3. 執行原本的裝備掃描邏輯
         try {
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
@@ -210,7 +222,9 @@
                 grid.appendChild(card);
             }
             status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
-        } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
+        } catch (err) { 
+            status.innerText = "❌ 錯誤: " + err.message; 
+        }
     };
 
     async function sync(btn, itemData) {

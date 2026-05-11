@@ -12,6 +12,16 @@
         button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
         .btn-primary { background: #3b82f6; color: white; }
         .btn-save { background: #10b981; color: white; }
+        
+        /* 圖二：搜尋目標的玩家資訊區 */
+        .profile-bar { display: none; align-items: center; gap: 20px; background: #1c1c21; padding: 20px; border-radius: 15px; border: 1px solid #3b82f644; margin-bottom: 20px; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; }
+        .profile-data { display: flex; flex-direction: column; gap: 5px; }
+        .p-name-row { display: flex; align-items: baseline; gap: 10px; }
+        .p-name { font-size: 24px; font-weight: bold; color: #fff; }
+        .p-code { font-size: 18px; color: #3b82f6; font-family: monospace; }
+        .p-ppsn { font-size: 14px; color: #808ca6; }
+
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
         .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
@@ -29,18 +39,31 @@
 <body>
 
 <div class="container">
-    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1></header>
+    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器 Pro</h1></header>
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN">
+                    <input type="text" id="target_input" placeholder="輸入搜尋目標的 5 碼 ID 或 PPSN">
                     <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
                 </div>
                 <div id="status-bar"></div>
             </div>
+
+            <div id="target_profile" class="profile-bar">
+                <img id="p_img" src="" class="profile-img">
+                <div class="profile-data">
+                    <div class="p-name-row">
+                        <span id="p_name" class="p-name"></span>
+                        <span id="p_code" class="p-code"></span>
+                    </div>
+                    <div class="p-ppsn">PPSN: <span id="p_ppsn_val"></span></div>
+                </div>
+            </div>
+
             <div id="equip_list" class="item-grid"></div>
         </div>
+
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
@@ -55,7 +78,6 @@
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
                 <h4>GitHub 配置</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
-                <p style="font-size:11px; color:#666; margin-top:-5px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
                 <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
         </div>
@@ -63,23 +85,12 @@
 </div>
 
 <script>
-    const GITHUB_CONFIG = {
-        owner: "xmasakix",
-        repo: "MSW-ID",
-        path: "data.json"
-    };
+    const GITHUB_CONFIG = { owner: "xmasakix", repo: "MSW-ID", path: "data.json" };
 
     window.onload = () => {
-        if (typeof NexonAPI === 'undefined') {
-            const statusBar = document.getElementById('status-bar');
-            if (statusBar) {
-                statusBar.style.display = 'block';
-                statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
-            }
-        }
+        // 載入快取與現有邏輯
         const savedGhToken = localStorage.getItem('github_token_v1');
         if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
-
         const savedAccounts = localStorage.getItem('msw_accounts_v1');
         if (savedAccounts) {
             try {
@@ -88,81 +99,52 @@
                     document.getElementById('token_input').value = accounts[0].token || '';
                     document.getElementById('userid_input').value = accounts[0].userId || '';
                 }
-            } catch(e) { console.error("解析儲存帳號失敗", e); }
+            } catch(e) { console.error(e); }
         }
         initImportFeature();
-    };
 
-    function initImportFeature() {
-        const fileSelector = document.getElementById('file_selector');
-        const importStatus = document.getElementById('import_status');
-        if (!fileSelector) return;
-
-        fileSelector.onchange = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    const currentId = data.current_account;
-                    const accounts = data.accounts || [];
-                    const activeAccount = accounts.find(acc => acc.user_id === currentId);
-                    if (activeAccount) {
-                        const token = activeAccount.access_token;
-                        const userId = activeAccount.user_id;
-                        document.getElementById('token_input').value = token;
-                        document.getElementById('userid_input').value = userId;
-                        if (importStatus) {
-                            importStatus.innerText = `✅ 已自動儲存：${activeAccount.nickname || userId}`;
-                            importStatus.style.display = 'block';
-                        }
-                        localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: userId, token: token}]));
-                    } else {
-                        alert('❌ 找不到目前啟用的帳號');
-                    }
-                } catch (err) { alert('❌ JSON 檔案解析失敗'); }
-                fileSelector.value = '';
-            };
-            reader.readAsText(file);
-        };
-    }
-
-    function copy(text, btn) {
-        navigator.clipboard.writeText(text).then(() => {
-            const oldText = btn.innerText;
-            btn.innerText = "OK";
-            setTimeout(() => btn.innerText = oldText, 1000);
+        // 加入 ENTER 搜尋功能
+        document.getElementById('target_input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('btn_search').click();
         });
-    }
-
-    document.getElementById('btn_save').onclick = () => {
-        const nToken = document.getElementById('token_input').value.trim();
-        const nUser = document.getElementById('userid_input').value.trim();
-        const gToken = document.getElementById('gh_token_input').value.trim();
-        if (nToken && nUser) localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
-        if (gToken) localStorage.setItem('github_token_v1', gToken);
-        alert("所有憑證已同步至瀏覽器快取！");
     };
 
+    // 核心搜尋與圖二資料更新邏輯
     document.getElementById('btn_search').onclick = async function() {
         if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
+        const pBar = document.getElementById('target_profile');
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在提取最新穿戴清單...";
+        status.innerText = "🔄 正在獲取玩家資訊與裝備...";
         grid.innerHTML = "";
+        pBar.style.display = "none";
 
         try {
+            // 1. 取得搜尋目標的個人資料 (圖二資料來源)
+            // 這裡假設 NexonAPI.getEquipList 回傳的資料中包含目標玩家的基本資訊，或是使用你的 API 獲取
             const rawItems = await NexonAPI.getEquipList(input);
+            
+            // 嘗試從 API 回傳中解析出搜尋目標的資料
+            // 註：這部分依賴你 nexon_api.js 的回傳格式，通常第一筆資料會附帶玩家資訊
+            if (rawItems && rawItems.length > 0) {
+                const target = rawItems[0]; // 假設 API 會附帶目標資訊
+                document.getElementById('p_img').src = target.profileImageUrl || '';
+                document.getElementById('p_name').innerText = target.profileName || target.nickname || '未知';
+                document.getElementById('p_code').innerText = `#${target.profileCode || '00000'}`;
+                document.getElementById('p_ppsn_val').innerText = target.ppsn || target.sellerPpsn || input;
+                pBar.style.display = "flex";
+            }
+
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
+            // 2. 渲染卡片 (保持原本完整的所有欄位)
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
                 const displayData = {
@@ -204,7 +186,6 @@
                     </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
-
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
@@ -212,32 +193,26 @@
         } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
 
+    // 補回被簡化的 GitHub 同步邏輯
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
-        
         try {
             const token = localStorage.getItem('github_token_v1');
             const { owner, repo, path } = GITHUB_CONFIG;
             if (!token) throw new Error("請先儲存 GitHub Token");
 
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-            const commonHeaders = {
-                "Authorization": `Bearer ${token.trim()}`,
-                "Accept": "application/vnd.github.v3+json"
-            };
+            const commonHeaders = { "Authorization": `Bearer ${token.trim()}`, "Accept": "application/vnd.github.v3+json" };
 
             const res = await fetch(getUrl, { headers: commonHeaders });
-            let sha = "";
-            let currentItems = [];
-            
+            let sha = ""; let currentItems = [];
             if (res.ok) {
                 const fileData = await res.json();
                 sha = fileData.sha;
                 const cleanBase64 = fileData.content.replace(/\s/g, '');
-                const decodedContent = decodeURIComponent(escape(atob(cleanBase64)));
-                currentItems = JSON.parse(decodedContent);
+                currentItems = JSON.parse(decodeURIComponent(escape(atob(cleanBase64))));
             }
 
             const newData = {
@@ -252,29 +227,63 @@
             if (existsIndex > -1) currentItems[existsIndex] = newData;
             else currentItems.push(newData);
 
-            const jsonString = JSON.stringify(currentItems, null, 2);
-            const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
-
             const putRes = await fetch(getUrl, {
                 method: "PUT",
                 headers: { ...commonHeaders, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: `📦 Update: ${newData.keyword}`,
-                    content: encodedContent,
+                    content: btoa(unescape(encodeURIComponent(JSON.stringify(currentItems, null, 2)))),
                     sha: sha
                 })
             });
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
-
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
-
         } catch (err) {
             alert("❌ 失敗: " + err.message);
-            btn.innerText = originalText;
-            btn.disabled = false;
+            btn.innerText = originalText; btn.disabled = false;
         }
+    }
+
+    // 補回憑證儲存與匯入邏輯
+    function initImportFeature() {
+        const fileSelector = document.getElementById('file_selector');
+        fileSelector.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const activeAccount = (data.accounts || []).find(acc => acc.user_id === data.current_account);
+                    if (activeAccount) {
+                        document.getElementById('token_input').value = activeAccount.access_token;
+                        document.getElementById('userid_input').value = activeAccount.user_id;
+                        document.getElementById('import_status').innerText = `✅ 已自動儲存：${activeAccount.nickname}`;
+                        document.getElementById('import_status').style.display = 'block';
+                        localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: activeAccount.user_id, token: activeAccount.access_token}]));
+                    }
+                } catch (err) { alert('❌ JSON 檔案解析失敗'); }
+            };
+            reader.readAsText(file);
+        };
+    }
+
+    document.getElementById('btn_save').onclick = () => {
+        const nToken = document.getElementById('token_input').value.trim();
+        const nUser = document.getElementById('userid_input').value.trim();
+        const gToken = document.getElementById('gh_token_input').value.trim();
+        if (nToken && nUser) localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
+        if (gToken) localStorage.setItem('github_token_v1', gToken);
+        alert("所有憑證已同步！");
+    };
+
+    function copy(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+            const old = btn.innerText; btn.innerText = "OK";
+            setTimeout(() => btn.innerText = old, 1000);
+        });
     }
 </script>
 </body>

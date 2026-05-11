@@ -51,10 +51,10 @@
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN">
-                    <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN" style="height: 45px; margin-bottom: 0;">
+                    <button id="btn_search" class="btn-primary" style="width: 150px; height: 45px;">掃描裝備</button>
                 </div>
-                <div id="status-bar"></div>
+                <div id="status-bar" style="margin-top: 15px;"></div>
             </div>
 
             <div id="target_profile" class="profile-bar">
@@ -118,9 +118,11 @@
         initImportFeature();
     };
 
-    // 補回：Enter 鍵搜尋功能
+    // 新增：搜尋裝備 ENTER 監聽
     document.getElementById('target_input').onkeydown = (e) => {
-        if (e.key === 'Enter') document.getElementById('btn_search').click();
+        if (e.key === 'Enter') {
+            document.getElementById('btn_search').click();
+        }
     };
 
     function initImportFeature() {
@@ -180,23 +182,23 @@
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
-        const pBar = document.getElementById('target_profile');
+        const pBar = document.getElementById('target_profile'); // 圖二資料橫條
 
         if (!input) return;
         status.style.display = "block";
         status.innerText = "🔄 正在提取最新穿戴清單...";
         grid.innerHTML = "";
-        pBar.style.display = "none";
+        pBar.style.display = "none"; // 初始隱藏橫條
 
         try {
-            // 補回：透過擴充功能獲取玩家資料並顯示 (圖二)
+            // 獲取並顯示玩家 Profile (圖二資料)
             const p = await NexonAPI.getPlayerProfile(input);
             if (p) {
                 document.getElementById('p_img').src = p.profileImageUrl || '';
                 document.getElementById('p_name').innerText = p.profileName || '未知';
                 document.getElementById('p_code').innerText = `#${p.profileCode || ''}`;
                 document.getElementById('p_ppsn').innerText = p.ppsn || '';
-                pBar.style.display = "flex";
+                pBar.style.display = "flex"; // 顯示橫條
             }
 
             const rawItems = await NexonAPI.getEquipList(input);

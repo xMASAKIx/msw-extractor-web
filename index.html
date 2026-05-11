@@ -8,32 +8,42 @@
         body { background-color: #0f0f12; color: #e4e4e7; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 12px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; outline: none; }
-        button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-save { background: #10b981; color: white; }
         
-        /* 圖二：搜尋目標的玩家資訊區 */
+        /* 搜尋列：確保 input 與 button 高度完美一致 */
+        .search-group { display: flex; gap: 10px; align-items: center; }
+        input { 
+            background: #27272a; border: 1px solid #3f3f46; color: white; 
+            padding: 0 15px; border-radius: 8px; width: 100%; box-sizing: border-box; 
+            outline: none; height: 45px; 
+        }
+        .btn-primary { 
+            background: #3b82f6; color: white; cursor: pointer; border: none; 
+            border-radius: 8px; font-weight: 600; width: 120px; transition: 0.2s;
+            height: 45px; display: flex; align-items: center; justify-content: center;
+        }
+        
+        /* 圖二：搜尋結果目標玩家資訊 */
         .profile-bar { display: none; align-items: center; gap: 20px; background: #1c1c21; padding: 20px; border-radius: 15px; border: 1px solid #3b82f644; margin-bottom: 20px; }
-        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; background: #000; }
         .profile-data { display: flex; flex-direction: column; gap: 5px; }
         .p-name-row { display: flex; align-items: baseline; gap: 10px; }
         .p-name { font-size: 24px; font-weight: bold; color: #fff; }
         .p-code { font-size: 18px; color: #3b82f6; font-family: monospace; }
         .p-ppsn { font-size: 14px; color: #808ca6; }
 
+        /* 卡片與列表 */
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
+        .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; }
         .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
         .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
         .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; }
         .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
         .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
         .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
-        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; }
-        .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
-        #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
-        h4 { margin: 10px 0 8px 0; color: #808ca6; font-size: 12px; text-transform: uppercase; }
+        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; font-size: 12px; margin-left: 8px; border-radius: 4px; border:none; cursor:pointer;}
+        .btn-sync { background: #7359cc; color: white; margin-top: 15px; width: 100%; padding: 12px; border-radius: 8px; border:none; cursor:pointer; font-weight:600;}
+        
+        #status-bar { padding: 12px; border-radius: 8px; margin-top: 15px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
     </style>
 </head>
 <body>
@@ -43,9 +53,9 @@
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
             <div class="card">
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入搜尋目標的 5 碼 ID 或 PPSN">
-                    <button id="btn_search" class="btn-primary" style="width: 120px;">掃描裝備</button>
+                <div class="search-group">
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN">
+                    <button id="btn_search" class="btn-primary">掃描裝備</button>
                 </div>
                 <div id="status-bar"></div>
             </div>
@@ -54,7 +64,7 @@
                 <img id="p_img" src="" class="profile-img">
                 <div class="profile-data">
                     <div class="p-name-row">
-                        <span id="p_name" class="p-name"></span>
+                        <span id="p_name" class="p-name">載入中...</span>
                         <span id="p_code" class="p-code"></span>
                     </div>
                     <div class="p-ppsn">PPSN: <span id="p_ppsn_val"></span></div>
@@ -67,51 +77,20 @@
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h4 style="margin: 0;">Nexon 帳號</h4>
-                    <input type="file" id="file_selector" accept=".json" style="display: none;">
-                    <button id="btn_import" onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
-                </div>
-                <input type="password" id="token_input" placeholder="AccessToken">
-                <input type="text" id="userid_input" placeholder="UserId">
-                <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
-                <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
-                <h4>GitHub 配置</h4>
-                <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
-                <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
+                <input type="password" id="token_input" placeholder="AccessToken" style="margin-bottom:10px;">
+                <input type="text" id="userid_input" placeholder="UserId" style="margin-bottom:10px;">
+                <button id="btn_save" style="background: #10b981; color: white; width: 100%; padding:12px; border-radius:8px; border:none; cursor:pointer;">💾 儲存所有憑證</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    const GITHUB_CONFIG = { owner: "xmasakix", repo: "MSW-ID", path: "data.json" };
+    document.getElementById('target_input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('btn_search').click();
+    });
 
-    window.onload = () => {
-        // 載入快取與現有邏輯
-        const savedGhToken = localStorage.getItem('github_token_v1');
-        if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
-        const savedAccounts = localStorage.getItem('msw_accounts_v1');
-        if (savedAccounts) {
-            try {
-                const accounts = JSON.parse(savedAccounts);
-                if (accounts.length > 0) {
-                    document.getElementById('token_input').value = accounts[0].token || '';
-                    document.getElementById('userid_input').value = accounts[0].userId || '';
-                }
-            } catch(e) { console.error(e); }
-        }
-        initImportFeature();
-
-        // 加入 ENTER 搜尋功能
-        document.getElementById('target_input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('btn_search').click();
-        });
-    };
-
-    // 核心搜尋與圖二資料更新邏輯
     document.getElementById('btn_search').onclick = async function() {
-        if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
@@ -119,72 +98,79 @@
 
         if (!input) return;
         status.style.display = "block";
-        status.innerText = "🔄 正在獲取玩家資訊與裝備...";
+        status.innerText = "🔄 正在讀取資料...";
         grid.innerHTML = "";
         pBar.style.display = "none";
 
         try {
-            // 1. 取得搜尋目標的個人資料 (圖二資料來源)
-            // 這裡假設 NexonAPI.getEquipList 回傳的資料中包含目標玩家的基本資訊，或是使用你的 API 獲取
-            const rawItems = await NexonAPI.getEquipList(input);
-            
-            // 嘗試從 API 回傳中解析出搜尋目標的資料
-            // 註：這部分依賴你 nexon_api.js 的回傳格式，通常第一筆資料會附帶玩家資訊
-            if (rawItems && rawItems.length > 0) {
-                const target = rawItems[0]; // 假設 API 會附帶目標資訊
-                document.getElementById('p_img').src = target.profileImageUrl || '';
-                document.getElementById('p_name').innerText = target.profileName || target.nickname || '未知';
-                document.getElementById('p_code').innerText = `#${target.profileCode || '00000'}`;
-                document.getElementById('p_ppsn_val').innerText = target.ppsn || target.sellerPpsn || input;
-                pBar.style.display = "flex";
-            }
+            // 呼叫圖二 Profile API
+            fetchTargetProfile(input);
 
+            const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
                 status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
-            // 2. 渲染卡片 (保持原本完整的所有欄位)
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
-                const displayData = {
-                    name: item.itemName,
-                    price: realData?.price !== undefined ? realData.price : "未知",
-                    priceUnit: (realData && realData.price !== "未上架") ? "wc" : "",
-                    itemId: realData?.itemId || item.itemId || "未上架",
-                    img: item.itemImageUrl || item.itemThumbnailUrl,
-                    sellerPpsn: realData?.sellerPpsn || "", 
-                    authorDisplay: (realData && realData.profileCode) 
-                        ? `${realData.nickname}#${realData.profileCode}` 
-                        : (realData?.nickname || "未上架")
-                };
+                renderCard(item, realData, grid);
+            }
+            status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
+        } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
+    };
 
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}"></div>
-                    <div class="info-row">
-                        <div class="info-label">📝 名稱</div>
-                        <div class="info-value">${displayData.name}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                    </div>
-                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row">
-                        <div class="info-label">👤 作者</div>
-                        <div class="info-value">${displayData.authorDisplay}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
+    async function fetchTargetProfile(idOrPpsn) {
+        try {
+            const profileApiUrl = `https://mverse-api.nexon.com/social/v1/profile/${idOrPpsn}`;
+            const response = await fetch(profileApiUrl);
+            const resData = await response.json();
+            
+            if (resData && resData.data) {
+                const p = resData.data;
+                document.getElementById('p_img').src = p.profileImageUrl || '';
+                document.getElementById('p_name').innerText = p.profileName || '未知玩家';
+                document.getElementById('p_code').innerText = `#${p.profileCode || ''}`;
+                document.getElementById('p_ppsn_val').innerText = p.ppsn || idOrPpsn;
+                document.getElementById('target_profile').style.display = "flex";
+            }
+        } catch (e) { console.error("Profile API Error:", e); }
+    }
+
+    function renderCard(item, realData, container) {
+        const display = {
+            name: item.itemName,
+            price: realData?.price !== undefined ? realData.price : "未知",
+            itemId: realData?.itemId || item.itemId || "未上架",
+            img: item.itemImageUrl || item.itemThumbnailUrl,
+            author: (realData && realData.profileCode) ? `${realData.nickname}#${realData.profileCode}` : (realData?.nickname || "未上架")
+        };
+
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+            <div class="thumb-box"><img src="${display.img}"></div>
+            <div class="info-row">
+                <div class="info-label">📝 名稱</div>
+                <div class="info-value">${display.name}</div>
+                <button class="copy-btn" onclick="copy('${display.name}', this)">📋</button>
+            </div>
+            <div class="price-text">${display.price} <span style="font-size:14px;color:#888">wc</span></div>
+            <div class="info-row">
+                <div class="info-label">👤 作者</div>
+                <div class="info-value">${display.author}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">🆔 商品 ID</div>
+                <div class="info-value">${display.itemId}</div>
+                <button class="copy-btn" onclick="copy('${display.itemId}', this)">📋</button>
+            </div>
+            <div class="info-row">
+                <div class="info-label">🖼️ 縮圖網址</div>
+                <div class="info-value">${display.img}</div>
+                <button class="copy-btn" onclick="copy('${display.img}', this)">📋</button>
+            </div>
+            <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);

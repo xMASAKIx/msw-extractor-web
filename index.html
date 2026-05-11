@@ -113,27 +113,34 @@
         initImportFeature();
     };
 
+    // 補回：Enter 鍵功能
+    document.getElementById('target_input').onkeydown = (e) => {
+        if (e.key === 'Enter') document.getElementById('btn_search').click();
+    };
+
     document.getElementById('btn_search').onclick = async function() {
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
-        if (!input) return;
+        const pBar = document.getElementById('target_profile');
 
+        if (!input) return;
         status.style.display = "block";
         status.innerText = "🔄 正在獲取資料...";
         grid.innerHTML = "";
+        pBar.style.display = "none";
 
         try {
-            // 獲取玩家頭像與資訊 (圖二/圖四功能)
+            // 圖二資料抓取
             const response = await fetch(`https://mverse-api.nexon.com/social/v1/profile/${input}`);
             const res = await response.json();
             if (res && res.data) {
                 const p = res.data;
-                document.getElementById('p_img').src = p.profileImageUrl;
-                document.getElementById('p_name').innerText = p.profileName;
-                document.getElementById('p_code').innerText = `#${p.profileCode}`;
-                document.getElementById('p_ppsn_val').innerText = p.ppsn;
-                document.getElementById('target_profile').style.display = "flex";
+                document.getElementById('p_img').src = p.profileImageUrl || '';
+                document.getElementById('p_name').innerText = p.profileName || '未知';
+                document.getElementById('p_code').innerText = `#${p.profileCode || ''}`;
+                document.getElementById('p_ppsn_val').innerText = p.ppsn || input;
+                pBar.style.display = "flex";
             }
 
             const rawItems = await NexonAPI.getEquipList(input);
@@ -170,7 +177,7 @@
         container.appendChild(card);
     }
 
-    // --- 核心同步邏輯 ---
+    // GitHub 同步邏輯
     async function syncToGithub(btn, data) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
@@ -178,49 +185,34 @@
         try {
             const token = localStorage.getItem('github_token_v1');
             if (!token) throw new Error("請先儲存 GitHub Token");
-            
             const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
             const headers = { "Authorization": `token ${token.trim()}`, "Accept": "application/vnd.github.v3+json" };
 
-            // 1. 獲取遠端 SHA 與內容
             const res = await fetch(url, { headers });
             let sha = ""; let items = [];
             if (res.ok) {
                 const file = await res.json();
                 sha = file.sha;
-                // 解碼 Base64 並支援中文字元
                 items = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\s/g, '')))));
             }
 
-            // 2. 構建新物件並更新陣列
-            const newItem = { 
-                "id": String(data.itemId), 
-                "img": data.img, 
-                "keyword": data.name, 
-                "wc": parseInt(data.price) || 0, 
-                "author": String(data.sellerPpsn) 
-            };
+            const newItem = { "id": String(data.itemId), "img": data.img, "keyword": data.name, "wc": parseInt(data.price) || 0, "author": String(data.sellerPpsn) };
             const idx = items.findIndex(i => String(i.id) === newItem.id);
             if (idx > -1) items[idx] = newItem; else items.push(newItem);
 
-            // 3. 回傳更新 (PUT)
             const putRes = await fetch(url, {
                 method: "PUT",
                 headers: { ...headers, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    message: `📦 Update: ${newItem.keyword}`,
+                    message: `Update: ${newItem.keyword}`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(items, null, 2)))),
                     sha: sha
                 })
             });
-
             if (!putRes.ok) throw new Error("GitHub 更新失敗");
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
-        } catch (err) {
-            alert(err.message);
-            btn.innerText = originalText; btn.disabled = false;
-        }
+        } catch (err) { alert(err.message); btn.innerText = originalText; btn.disabled = false; }
     }
 
     function initImportFeature() {
@@ -249,7 +241,7 @@
         const gt = document.getElementById('gh_token_input').value.trim();
         if (nt && nu) localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nu, token: nt}]));
         if (gt) localStorage.setItem('github_token_v1', gt);
-        alert("儲存完成！");
+        alert("儲存成功！");
     };
 
     function copy(text, btn) {

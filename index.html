@@ -12,24 +12,6 @@
         button { cursor: pointer; border: none; border-radius: 8px; padding: 12px; font-weight: 600; width: 100%; transition: 0.2s; }
         .btn-primary { background: #3b82f6; color: white; }
         .btn-save { background: #10b981; color: white; }
-        
-        .profile-bar { 
-            display: none; 
-            align-items: center; 
-            gap: 15px; 
-            background: #1c1c21; 
-            padding: 15px 20px; 
-            border-radius: 12px; 
-            border: 1px solid #3b82f644; 
-            margin-bottom: 20px; 
-        }
-        .profile-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; background: #000; }
-        .p-info { display: flex; flex-direction: column; gap: 4px; }
-        .p-name { font-size: 20px; font-weight: bold; color: #fff; }
-        .p-sub { display: flex; align-items: center; gap: 10px; }
-        .p-code { color: #3b82f6; font-family: monospace; font-size: 16px; font-weight: bold; }
-        .p-ppsn { color: #808ca6; font-size: 13px; font-family: monospace; }
-
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
         .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
@@ -38,9 +20,10 @@
         .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
         .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
         .info-value { color: #ffffff; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', monospace; }
-        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; border: none; cursor: pointer; }
-        .btn-sync { background: #7359cc; color: white; margin-top: 15px; width: 100%; cursor: pointer; border-radius: 8px; padding: 12px; border: none; }
+        .copy-btn { background: #2d2d35; color: #fb923c; width: 32px; height: 28px; padding: 0; font-size: 12px; margin-left: 8px; border-radius: 4px; }
+        .btn-sync { background: #7359cc; color: white; margin-top: 15px; }
         #status-bar { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid #3b82f633; }
+        h4 { margin: 10px 0 8px 0; color: #808ca6; font-size: 12px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -51,40 +34,28 @@
         <div class="left">
             <div class="card">
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID (如: bpt0p)" style="height: 45px; margin-bottom: 0;">
+                    <input type="text" id="target_input" placeholder="輸入 5 碼 ID 或 PPSN" style="margin-bottom: 0; height: 45px;">
                     <button id="btn_search" class="btn-primary" style="width: 150px; height: 45px;">掃描裝備</button>
                 </div>
                 <div id="status-bar" style="margin-top: 15px;"></div>
             </div>
-
-            <div id="target_profile" class="profile-bar">
-                <img id="p_img" src="" class="profile-img">
-                <div class="p-info">
-                    <div id="p_name" class="p-name">載入中...</div>
-                    <div class="p-sub">
-                        <div id="p_code" class="p-code">#-----</div>
-                        <div id="p_ppsn" class="p-ppsn"></div>
-                    </div>
-                </div>
-            </div>
-
             <div id="equip_list" class="item-grid"></div>
         </div>
-        
         <div class="right">
             <div class="card">
                 <h3>🔑 憑證管理</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h4 style="margin: 0; font-size: 12px; color: #808ca6;">Nexon 帳號</h4>
+                    <h4 style="margin: 0;">Nexon 帳號</h4>
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
-                    <button onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">📂 匯入帳號 JSON</button>
+                    <button id="btn_import" onclick="document.getElementById('file_selector').click()" style="background: #3f3f46; color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 8px;">📂 匯入帳號 JSON</button>
                 </div>
                 <input type="password" id="token_input" placeholder="AccessToken">
                 <input type="text" id="userid_input" placeholder="UserId">
                 <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
-                <h4 style="margin: 10px 0 8px 0; color: #808ca6; font-size: 12px;">GitHub 配置</h4>
+                <h4>GitHub 配置</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
+                <p style="font-size:11px; color:#666; margin-top:-5px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
                 <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
         </div>
@@ -92,11 +63,30 @@
 </div>
 
 <script>
-    const GITHUB_CONFIG = { owner: "xmasakix", repo: "MSW-ID", path: "data.json" };
+    const GITHUB_CONFIG = {
+        owner: "xmasakix",
+        repo: "MSW-ID",
+        path: "data.json"
+    };
 
     window.onload = () => {
+        // 新增：監聽 Enter 鍵搜尋
+        document.getElementById('target_input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                document.getElementById('btn_search').click();
+            }
+        });
+
+        if (typeof NexonAPI === 'undefined') {
+            const statusBar = document.getElementById('status-bar');
+            if (statusBar) {
+                statusBar.style.display = 'block';
+                statusBar.innerText = "❌ 錯誤：無法載入 js/nexon_api.js";
+            }
+        }
         const savedGhToken = localStorage.getItem('github_token_v1');
         if (savedGhToken) document.getElementById('gh_token_input').value = savedGhToken;
+
         const savedAccounts = localStorage.getItem('msw_accounts_v1');
         if (savedAccounts) {
             try {
@@ -105,17 +95,16 @@
                     document.getElementById('token_input').value = accounts[0].token || '';
                     document.getElementById('userid_input').value = accounts[0].userId || '';
                 }
-            } catch(e) {}
+            } catch(e) { console.error("解析儲存帳號失敗", e); }
         }
         initImportFeature();
     };
 
-    document.getElementById('target_input').onkeydown = (e) => {
-        if (e.key === 'Enter') document.getElementById('btn_search').click();
-    };
-
     function initImportFeature() {
         const fileSelector = document.getElementById('file_selector');
+        const importStatus = document.getElementById('import_status');
+        if (!fileSelector) return;
+
         fileSelector.onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -123,15 +112,24 @@
             reader.onload = function(event) {
                 try {
                     const data = JSON.parse(event.target.result);
-                    const activeAccount = data.accounts.find(acc => acc.user_id === data.current_account);
+                    const currentId = data.current_account;
+                    const accounts = data.accounts || [];
+                    const activeAccount = accounts.find(acc => acc.user_id === currentId);
                     if (activeAccount) {
-                        document.getElementById('token_input').value = activeAccount.access_token;
-                        document.getElementById('userid_input').value = activeAccount.user_id;
-                        localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: activeAccount.user_id, token: activeAccount.access_token}]));
-                        document.getElementById('import_status').innerText = `✅ 已自動儲存：${activeAccount.nickname}`;
-                        document.getElementById('import_status').style.display = 'block';
+                        const token = activeAccount.access_token;
+                        const userId = activeAccount.user_id;
+                        document.getElementById('token_input').value = token;
+                        document.getElementById('userid_input').value = userId;
+                        if (importStatus) {
+                            importStatus.innerText = `✅ 已自動儲存：${activeAccount.nickname || userId}`;
+                            importStatus.style.display = 'block';
+                        }
+                        localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: userId, token: token}]));
+                    } else {
+                        alert('❌ 找不到目前啟用的帳號');
                     }
-                } catch (err) { alert('❌ JSON 解析失敗'); }
+                } catch (err) { alert('❌ JSON 檔案解析失敗'); }
+                fileSelector.value = '';
             };
             reader.readAsText(file);
         };
@@ -151,40 +149,24 @@
         const gToken = document.getElementById('gh_token_input').value.trim();
         if (nToken && nUser) localStorage.setItem('msw_accounts_v1', JSON.stringify([{userId: nUser, token: nToken}]));
         if (gToken) localStorage.setItem('github_token_v1', gToken);
-        alert("憑證已儲存！");
+        alert("所有憑證已同步至瀏覽器快取！");
     };
 
     document.getElementById('btn_search').onclick = async function() {
+        if (typeof NexonAPI === 'undefined') return alert("API 模組尚未就緒");
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
         const grid = document.getElementById('equip_list');
-        const pBar = document.getElementById('target_profile');
+
         if (!input) return;
-
         status.style.display = "block";
-        status.innerText = "🔄 正在處理請求...";
+        status.innerText = "🔄 正在提取最新穿戴清單...";
         grid.innerHTML = "";
-        
-        try {
-            // --- 第一部分：處理圖二 (僅針對搜尋輸入的 ID) ---
-            // 直接根據輸入的 ID 抓取個人資料 API，不參考任何裝備數據
-            // 這裡假設 NexonAPI.request 是你用來繞過 CORS 的請求方法
-            const profileResponse = await NexonAPI.request(`https://mverse-api.nexon.com/social/v1/profile/${input}`);
-            
-            if (profileResponse && profileResponse.data) {
-                const pData = profileResponse.data;
-                pBar.style.display = "flex";
-                // 這裡顯示的是你搜尋時輸入的 ID 對應的 PPSN (例如 20372100006053110)
-                document.getElementById('p_ppsn').innerText = pData.ppsn || ""; 
-                document.getElementById('p_name').innerText = pData.nickname || "";
-                document.getElementById('p_code').innerText = `#${pData.profileCode || input.toUpperCase()}`;
-                document.getElementById('p_img').src = pData.profileImageUrl || '';
-            }
 
-            // --- 第二部分：處理裝備列表 (維持原樣) ---
+        try {
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {
-                status.innerText = "⚠️ 找不到穿戴裝備";
+                status.innerText = "⚠️ 找不到穿戴中的裝備";
                 return;
             }
 
@@ -197,56 +179,109 @@
                     itemId: realData?.itemId || item.itemId || "未上架",
                     img: item.itemImageUrl || item.itemThumbnailUrl,
                     sellerPpsn: realData?.sellerPpsn || "", 
-                    authorDisplay: (realData && realData.profileCode) ? `${realData.nickname}#${realData.profileCode}` : (realData?.nickname || "未上架")
+                    authorDisplay: (realData && realData.profileCode) 
+                        ? `${realData.nickname}#${realData.profileCode}` 
+                        : (realData?.nickname || "未上架")
                 };
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>
-                    <div class="info-row"><div class="info-label">📝 名稱</div><div class="info-value">${displayData.name}</div><button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button></div>
+                    <div class="info-row">
+                        <div class="info-label">📝 名稱</div>
+                        <div class="info-value">${displayData.name}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                    </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.authorDisplay}</div><button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button></div>
-                    <div class="info-row"><div class="info-label">🆔 商品 ID</div><div class="info-value">${displayData.itemId}</div><button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button></div>
-                    <div class="info-row"><div class="info-label">🖼️ 縮圖網址</div><div class="info-value">${displayData.img}</div><button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button></div>
+                    <div class="info-row">
+                        <div class="info-label">👤 作者</div>
+                        <div class="info-value">${displayData.authorDisplay}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
+
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
             status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
-        } catch (err) { 
-            status.innerText = "❌ 錯誤: " + err.message; 
-            console.error("執行失敗:", err);
-        }
+        } catch (err) { status.innerText = "❌ 錯誤: " + err.message; }
     };
-    
+
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
         btn.innerText = "⏳ 同步中...";
         btn.disabled = true;
+        
         try {
             const token = localStorage.getItem('github_token_v1');
             const { owner, repo, path } = GITHUB_CONFIG;
             if (!token) throw new Error("請先儲存 GitHub Token");
+
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-            const headers = { "Authorization": `Bearer ${token.trim()}`, "Accept": "application/vnd.github.v3+json" };
-            const res = await fetch(getUrl, { headers });
-            let sha = ""; let currentItems = [];
+            const commonHeaders = {
+                "Authorization": `Bearer ${token.trim()}`,
+                "Accept": "application/vnd.github.v3+json"
+            };
+
+            const res = await fetch(getUrl, { headers: commonHeaders });
+            let sha = "";
+            let currentItems = [];
+            
             if (res.ok) {
                 const fileData = await res.json();
                 sha = fileData.sha;
-                currentItems = JSON.parse(decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, '')))));
+                const cleanBase64 = fileData.content.replace(/\s/g, '');
+                const decodedContent = decodeURIComponent(escape(atob(cleanBase64)));
+                currentItems = JSON.parse(decodedContent);
             }
-            const newData = { "id": String(itemData.itemId), "img": itemData.img, "keyword": itemData.name, "wc": (itemData.price === "未知" || itemData.price === "未上架") ? 0 : parseInt(itemData.price), "author": String(itemData.sellerPpsn || "") };
+
+            const newData = {
+                "id": String(itemData.itemId),
+                "img": itemData.img,
+                "keyword": itemData.name,
+                "wc": (itemData.price === "未知" || itemData.price === "未上架") ? 0 : parseInt(itemData.price),
+                "author": String(itemData.sellerPpsn || "")
+            };
+
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);
-            if (existsIndex > -1) currentItems[existsIndex] = newData; else currentItems.push(newData);
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(currentItems, null, 2))));
-            const putRes = await fetch(getUrl, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ message: `📦 Update: ${newData.keyword}`, content: encoded, sha: sha }) });
+            if (existsIndex > -1) currentItems[existsIndex] = newData;
+            else currentItems.push(newData);
+
+            const jsonString = JSON.stringify(currentItems, null, 2);
+            const encodedContent = btoa(unescape(encodeURIComponent(jsonString)));
+
+            const putRes = await fetch(getUrl, {
+                method: "PUT",
+                headers: { ...commonHeaders, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: `📦 Update: ${newData.keyword}`,
+                    content: encodedContent,
+                    sha: sha
+                })
+            });
+
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
+
             btn.innerText = "✅ 同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
-        } catch (err) { alert("❌ 失敗: " + err.message); btn.innerText = originalText; btn.disabled = false; }
+
+        } catch (err) {
+            alert("❌ 失敗: " + err.message);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     }
 </script>
 </body>

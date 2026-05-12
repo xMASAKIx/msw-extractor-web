@@ -11,11 +11,11 @@
     .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 
     /* 搜尋區域：讓輸入框與按鈕高度一致 (48px) */
-    .search-group { display: flex; gap: 10px; margin-bottom: 10px; }
+    .search-group { display: flex; gap: 10px; margin-bottom: 0px; }
     input { 
-        background: #27272a; border: 1px solid #3f3f46; color: white; 
+        background: #27272a; border: 1px solid #3b82f644; color: white; 
         padding: 0 16px; border-radius: 8px; width: 100%; box-sizing: border-box; 
-        outline: none; height: 44px; font-size: 16px; flex: 1;
+        outline: none; height: 48px; font-size: 16px; flex: 1;
     }
     button { 
         cursor: pointer; border: none; border-radius: 8px; font-weight: 600; 
@@ -40,7 +40,7 @@
     /* --- 更新：用戶資料區域 (圖二) --- */
     .profile-bar { 
         display: none; align-items: center; background: #1c1c21; 
-        padding: 24px; border-radius: 12px; border: 1px solid #3b82f644; 
+        padding: 20px; border-radius: 12px; border: 1px solid #3b82f644; 
         margin-bottom: 20px; gap: 30px; 
     }
     .profile-avatar { 
@@ -94,7 +94,7 @@
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
                 <h4>GitHub 配置</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
-                <p style="font-size:11px; color:#666; margin-top:-5px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
+                <p style="font-size:11px; color:#666; margin-top:4px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
                 <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
             </div>
         </div>

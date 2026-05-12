@@ -194,24 +194,6 @@
             pBar.style.display = "none";
         });
 
-        // 2. 執行原有的裝備獲取邏輯
-        const rawItems = await NexonAPI.getEquipList(input);
-        
-        // ... 後續的 for 迴圈渲染邏輯與之前完全一致，不需更動 ...
-        
-        if (!rawItems || rawItems.length === 0) {
-            status.innerText = "⚠️ 找不到穿戴中的裝備";
-            return;
-        }
-        
-        // (此處保留你原始的裝備渲染代碼)
-
-        status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
-    } catch (err) { 
-        status.innerText = "❌ 錯誤: " + err.message; 
-    }
-};
-
             // 2. 抓取並渲染裝備列表 (原邏輯)
             const rawItems = await NexonAPI.getEquipList(input);
             if (!rawItems || rawItems.length === 0) {

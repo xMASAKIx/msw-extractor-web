@@ -309,7 +309,8 @@
                 "img": itemData.img,
                 "keyword": itemData.name,
                 "wc": (itemData.price === "未知" || itemData.price === "未上架") ? 0 : parseInt(itemData.price),
-                "author": String(itemData.sellerPpsn || "")
+                "author": String(itemData.sellerPpsn || ""),
+                "avatartype": itemData.avatarType || ""
             };
 
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);

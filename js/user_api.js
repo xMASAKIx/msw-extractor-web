@@ -1,27 +1,34 @@
 // js/user_api.js
 const UserAPI = {
-    // 獲取用戶資料的核心方法
     async getProfile(input) {
         try {
-            // 1. 先透過 NexonAPI 取得 PPSN (利用你現有的 getEquipList 邏輯)
-            // 這是最穩定的轉 ID 方式，因為它已經處理好了跨域
+            // 1. 先透過 NexonAPI 取得裝備列表，進而拿到轉換後的 PPSN
             const rawItems = await NexonAPI.getEquipList(input);
-            
-            if (!rawItems || rawItems.length === 0) {
-                throw new Error("找不到該玩家");
-            }
+            if (!rawItems || rawItems.length === 0) throw new Error("找不到該玩家");
 
-            // 取得轉換後的 PPSN
             const ppsn = rawItems[0].ppsn || rawItems[0].worldPpsn;
-
-            // 2. 使用 PPSN 請求詳細資料
-            // 注意：這裡必須使用 NexonAPI 內部那個能繞過 CORS 的請求方法 (例如 NexonAPI.request)
-            const response = await NexonAPI.request(`https://mverse-api.nexon.com/social/v1/profile/${ppsn}`);
             
-            if (response && response.data) {
-                return response.data; // 回傳包含 profileImageUrl, nickname, profileCode, ppsn 的物件
+            // 2. 獲取本地儲存的 Token (這對於請求 Profile API 是必須的)
+            const savedAccounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || "[]");
+            const token = savedAccounts.length > 0 ? savedAccounts[0].token : "";
+
+            // 3. 使用標準 fetch 請求 Profile，並帶上 Header
+            const response = await fetch(`https://mverse-api.nexon.com/social/v1/profile/${ppsn}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
+            
+            const result = await response.json();
+            
+            if (result && result.data) {
+                return result.data;
             } else {
-                throw new Error("無法讀取 Profile API");
+                throw new Error("Profile 資料格式錯誤");
             }
         } catch (err) {
             console.error("UserAPI Error:", err);

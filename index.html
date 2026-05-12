@@ -237,6 +237,8 @@
                     authorDisplay: (realData && realData.profileCode) 
                         ? `${realData.nickname}#${realData.profileCode}` 
                         : (realData?.nickname || "未上架")
+                    name: item.name,
+                    avatarType: item.avatarType
                 };
 
                 const card = document.createElement('div');

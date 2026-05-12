@@ -70,7 +70,6 @@ const NexonAPI = {
                     nickname: profile?.profileName || d.nickname || d.profileName || "未知",
                     profileCode: profile?.profileCode || d.profileCode || "", 
                     itemId: d.itemId || d.id || input,
-                    name: d.avatarName || d.name || "",      // 確保這裡有對應到 name
                     avatarType: d.avatarType || ""
                 };
             }

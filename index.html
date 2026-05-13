@@ -222,31 +222,24 @@
         pBar.style.display = "none";
     
         try {
-            // 直接調用 API
             const res = await NexonAPI.getRealProductDetail(itemId);
     
-            // 強制檢查：如果抓回來的資料沒有 price 或標示未上架
-            if (!res || res.price === "未上架") {
-                status.innerText = "⚠️ 找不到該商品或已下架";
-                return;
-            }
+            if (res && res.price !== "未上架") {
+                
+                // --- 這裡就是你貼的那段邏輯，負責處理資料映射 ---
+                const name = res.itemName || res.title || res.name || "未知裝備";
+                const thumbnail = res.itemThumbnailUrl || res.thumbnail || res.iconUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${itemId}`;
     
-            // --- 關鍵修正：針對單品 API 結構進行映射 ---
-            // 根據 image_1e0bf5.png 的成功案例，名稱通常在 title 或 name
-            const name = res.itemName || res.title || res.name || "未知裝備";
-            const thumbnail = res.itemThumbnailUrl || res.thumbnail || res.iconUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${itemId}`;
-            
-            const displayData = {
-                name: res.title || res.name || res.avatarName || "未知裝備",
-                price: res.price,
-                priceUnit: "wc",
-                itemId: res.itemId || itemId,
-                // 圖片網址：優先使用 API 給的完整網址，否則使用 CDN 組合
-                img: res.iconUrl || res.itemImageUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${res.itemId || itemId}`,
-                sellerPpsn: res.sellerPpsn || "", 
-                authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
-                avatarType: res.avatarType || ""
-            };
+                const displayData = {
+                    name: name, // 使用備援後的名稱
+                    price: res.price,
+                    priceUnit: "wc",
+                    itemId: res.itemId || itemId,
+                    img: thumbnail, // 使用備援後的圖片
+                    sellerPpsn: res.sellerPpsn || "", 
+                    authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
+                    avatarType: res.avatarType || ""
+                };
     
             const card = document.createElement('div');
             card.className = 'item-card';
@@ -283,11 +276,10 @@
             grid.appendChild(card);
             status.innerText = `✅ 查詢成功: ${displayData.name}`;
     
-        } catch (err) {
-            console.error("單品查詢錯誤:", err);
-            status.innerText = "❌ 查詢失敗: " + err.message;
-        }
-    };
+    } catch (err) {
+        console.error(err);
+    }
+};
 
     document.getElementById('btn_search').onclick = async function() {
     const input = document.getElementById('target_input').value.trim();

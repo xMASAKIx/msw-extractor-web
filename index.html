@@ -206,37 +206,35 @@
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
-    // --- 新增：單品查詢按鈕事件 ---
     // --- 修正：單品查詢按鈕事件 ---
-document.getElementById('btn_single_search').onclick = async function() {
-    const itemId = document.getElementById('single_id_input').value.trim();
-    const grid = document.getElementById('equip_list');
-    const status = document.getElementById('status-bar');
-    const pBar = document.getElementById('target_profile');
-
-    if (!itemId) return;
-
-    status.style.display = "block";
-    status.innerText = "🔍 正在查詢單一商品...";
-    grid.innerHTML = "";
-    pBar.style.display = "none";
-
-    try {
-        const realData = await NexonAPI.getRealProductDetail(itemId);
-
-        if (realData && realData.price !== "未上架") {
-            // 修正點：使用更能確保抓到資料的欄位優先級
-            const displayData = {
-                name: item.itemName,
-                    price: realData?.price !== undefined ? realData.price : "未知",
-                    priceUnit: (realData && realData.price !== "未上架") ? "wc" : "",
-                    itemId: realData?.itemId || item.itemId || "未上架",
-                    img: item.itemImageUrl || item.itemThumbnailUrl,
-                    sellerPpsn: realData?.sellerPpsn || "", 
-                    authorDisplay: (realData && realData.profileCode) 
-                        ? `${realData.nickname}#${realData.profileCode}` 
-                        : (realData?.nickname || "未上架"),
-                    avatarType: item.avatarType
+    document.getElementById('btn_single_search').onclick = async function() {
+        const itemId = document.getElementById('single_id_input').value.trim();
+        const grid = document.getElementById('equip_list');
+        const status = document.getElementById('status-bar');
+        const pBar = document.getElementById('target_profile');
+    
+        if (!itemId) return;
+    
+        status.style.display = "block";
+        status.innerText = "🔍 正在查詢單一商品...";
+        grid.innerHTML = "";
+        pBar.style.display = "none";
+    
+        try {
+            const realData = await NexonAPI.getRealProductDetail(itemId);
+    
+            if (realData && realData.price !== "未上架") {
+                // 修正點：使用更能確保抓到資料的欄位優先級
+                const displayData = {
+                    name: realData.name || realData.avatarName || "未知裝備", // 增加 avatarName 備案
+                    price: realData.price,
+                    priceUnit: "wc",
+                    itemId: realData.itemId || itemId, // 如果 API 沒回傳 ID 就用輸入的 ID
+                    // 確保圖片路徑正確
+                    img: realData.img || realData.iconUrl || `https://mod-file.dn.nexon.com/prime/inventory/icon/${realData.itemId || itemId}`,
+                    sellerPpsn: realData.sellerPpsn || "", 
+                    authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
+                    avatarType: realData.avatarType || ""
                 };
 
             const card = document.createElement('div');

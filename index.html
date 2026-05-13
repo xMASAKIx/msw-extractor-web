@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MSW 裝備管理器 Pro</title>
+    <title>造型查詢系統</title>
     <script src="js/nexon_api.js"></script>
     <script src="js/user_api.js"></script>
     <style>
@@ -60,13 +60,13 @@
 <body>
 
 <div class="container">
-    <header><h1 style="color: #4ade80;">👕 MSW 裝備提取管理器</h1></header>
+    <header><h1 style="color: #4ade80;">造型查詢系統</h1></header>
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 24px;">
         <div class="left">
             <div class="card">
                 <div class="search-group">
-                    <input type="text" id="target_input" placeholder="輸入玩家 5 碼 ID 或 PPSN">
-                    <button id="btn_search" class="btn-primary">掃描裝備</button>
+                    <input type="text" id="target_input" placeholder="輸入玩家 5碼ID 或 PPSN">
+                    <button id="btn_search" class="btn-primary">搜尋玩家造型</button>
                 </div>
             </div>
             
@@ -84,14 +84,14 @@
         <div class="right">
             <!-- 新增：單品快速查詢，保持對齊高度 -->
             <div class="card">
-                <h3 style="margin-top: 0;">🔍 單品快速查詢</h3>
+                <h3 style="margin-top: 0;">🔍 商品ID查詢</h3>
                 <div class="search-group">
-                    <input type="text" id="single_id_input" placeholder="直接輸入商品 ID">
+                    <input type="text" id="single_id_input" placeholder="輸入商品 ID">
                     <button id="btn_single_search" class="btn-primary" style="background: #7359cc; width: 100px;">查詢</button>
                 </div>
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
                 
-                <h3>🔑 憑證管理</h3>
+                <h3>🔑 Token憑證</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <h4 style="margin: 0;">Nexon 帳號</h4>
                     <input type="file" id="file_selector" accept=".json" style="display: none;">
@@ -101,10 +101,10 @@
                 <input type="text" id="userid_input" placeholder="UserId">
                 <p id="import_status" style="font-size: 11px; color: #4ade80; margin-top: 4px; display: none;"></p>
                 <hr style="border:0; border-top:1px solid #27272a; margin:15px 0;">
-                <h4>GitHub 配置</h4>
+                <h4>GitHub Token金鑰</h4>
                 <input type="password" id="gh_token_input" placeholder="GitHub Personal Access Token">
                 <p style="font-size:11px; color:#666; margin-top:4px;">* Token 不會儲存在程式碼中，僅存於此瀏覽器。</p>
-                <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存所有憑證</button>
+                <button id="btn_save" class="btn-save" style="margin-top:10px;">💾 儲存Token資料</button>
             </div>
         </div>
     </div>
@@ -124,7 +124,7 @@
             }
         });
 
-        // 單品查詢 Enter 支援
+        // 查詢 Enter 支援
         document.getElementById('single_id_input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 document.getElementById('btn_single_search').click();
@@ -206,7 +206,7 @@
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
-    // --- 修正：單品查詢按鈕事件 ---
+    // --- 修正：商品ID查詢按鈕 ---
     document.getElementById('btn_single_search').onclick = async function() {
         const itemId = document.getElementById('single_id_input').value.trim();
         const grid = document.getElementById('equip_list');
@@ -214,7 +214,7 @@
     
         if (!itemId) return;
         status.style.display = "block";
-        status.innerText = "🔍 正在深度掃描商品資料...";
+        status.innerText = "🔍 正在搜尋造型資料...";
         grid.innerHTML = "";
     
         try {
@@ -254,10 +254,10 @@
                         <div class="info-value">${displayData.name}</div>
                     </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">wc</span></div>
-                    <div class="info-row"><div class="info-label">👤 作者</div><div class="info-value">${displayData.authorDisplay}</div></div>
+                    <div class="info-row"><div class="info-label">👤 上傳者</div><div class="info-value">${displayData.authorDisplay}</div></div>
                     <div class="info-row"><div class="info-label">🆔 商品 ID</div><div class="info-value">${displayData.itemId}</div></div>
                     <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-label">🖼️ 網址</div>
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
@@ -283,7 +283,7 @@
     if (!input) return;
 
     status.style.display = "block";
-    status.innerText = "🔄 正在提取資料...";
+    status.innerText = "🔄 正在搜尋玩家造型...";
     grid.innerHTML = "";
     pBar.style.display = "none";
 
@@ -295,13 +295,13 @@
             document.getElementById('p_code').innerText = `#${data.profileCode}`;
             document.getElementById('p_ppsn').innerText = data.ppsn;
         }).catch(e => {
-            console.error("玩家資訊載入失敗", e);
+            console.error("玩家造型載入失敗 請重新載入Token", e);
         });
 
         const rawItems = await NexonAPI.getEquipList(input);
         
         if (!rawItems || rawItems.length === 0) {
-            status.innerText = "⚠️ 找不到穿戴中的裝備";
+            status.innerText = "⚠️ 找不到玩家穿戴中的造型";
             return;
         }
 
@@ -331,7 +331,7 @@
                     </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
                     <div class="info-row">
-                        <div class="info-label">👤 作者</div>
+                        <div class="info-label">👤 上傳者</div>
                         <div class="info-value">${displayData.authorDisplay}</div>
                         <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
                     </div>
@@ -341,17 +341,17 @@
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
                     <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-label">🖼️ 網址</div>
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
+                    <button class="btn-sync">🚀 同步至正版商品ID網站</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
-            status.innerText = `✅ 提取完成 (${new Date().toLocaleTimeString()})`;
+            status.innerText = `✅ 已同步完成 (${new Date().toLocaleTimeString()})`;
     } catch (err) {
         status.innerText = "❌ 錯誤: " + err.message;
     }
@@ -411,7 +411,7 @@
             });
 
             if (!putRes.ok) throw new Error("GitHub 上傳失敗");
-            btn.innerText = "✅ 同步成功";
+            btn.innerText = "✅ 已同步成功";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
         } catch (err) {
             alert("❌ 失敗: " + err.message);

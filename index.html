@@ -275,11 +275,11 @@
             card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
             grid.appendChild(card);
             status.innerText = `✅ 查詢成功: ${displayData.name}`;
-    
-    } catch (err) {
-        console.error(err);
-    }
-};
+        }
+            } catch (err) {
+                console.error(err);
+            }
+        };
 
     document.getElementById('btn_search').onclick = async function() {
     const input = document.getElementById('target_input').value.trim();

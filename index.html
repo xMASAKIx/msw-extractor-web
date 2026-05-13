@@ -207,40 +207,49 @@
     };
 
     // --- 修正：單品查詢按鈕事件 ---
+    // --- 單一商品搜尋專用邏輯 ---
     document.getElementById('btn_single_search').onclick = async function() {
-    const itemId = document.getElementById('single_id_input').value.trim();
-    const grid = document.getElementById('equip_list');
-    const status = document.getElementById('status-bar');
-    const pBar = document.getElementById('target_profile');
-
-    if (!itemId) return;
-
-    status.style.display = "block";
-    status.innerText = "🔍 正在查詢單一商品...";
-    grid.innerHTML = "";
-    pBar.style.display = "none";
-
-    try {
-        const realData = await NexonAPI.getRealProductDetail(itemId);
-
-        if (realData && realData.price !== "未上架") {
-            // 修正點：單品 API 的名稱通常在 title，圖片在 iconUrl 或特定 CDN 路徑
+        const itemId = document.getElementById('single_id_input').value.trim();
+        const grid = document.getElementById('equip_list');
+        const status = document.getElementById('status-bar');
+        const pBar = document.getElementById('target_profile');
+    
+        if (!itemId) return;
+    
+        status.style.display = "block";
+        status.innerText = "🔍 正在查詢單一商品...";
+        grid.innerHTML = "";
+        pBar.style.display = "none";
+    
+        try {
+            // 直接調用 API
+            const res = await NexonAPI.getRealProductDetail(itemId);
+    
+            // 強制檢查：如果抓回來的資料沒有 price 或標示未上架
+            if (!res || res.price === "未上架") {
+                status.innerText = "⚠️ 找不到該商品或已下架";
+                return;
+            }
+    
+            // --- 關鍵修正：針對單品 API 結構進行映射 ---
+            // 根據 image_1e0bf5.png 的成功案例，名稱通常在 title 或 name
             const displayData = {
-                name: realData.title || realData.name || realData.avatarName || "未知裝備",
-                price: realData.price,
+                name: res.title || res.name || res.avatarName || "未知裝備",
+                price: res.price,
                 priceUnit: "wc",
-                itemId: realData.itemId || itemId,
-                // 優先使用回傳的圖片網址，若無則組合 CDN 路徑
-                img: realData.iconUrl || realData.itemImageUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${realData.itemId || itemId}`,
-                sellerPpsn: realData.sellerPpsn || "", 
-                authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
-                avatarType: realData.avatarType || ""
+                itemId: res.itemId || itemId,
+                // 圖片網址：優先使用 API 給的完整網址，否則使用 CDN 組合
+                img: res.iconUrl || res.itemImageUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${res.itemId || itemId}`,
+                sellerPpsn: res.sellerPpsn || "", 
+                authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
+                avatarType: res.avatarType || ""
             };
-
+    
             const card = document.createElement('div');
             card.className = 'item-card';
             card.innerHTML = `
                 <div class="thumb-box">
+                    <!-- 增加多重備援圖片，確保不會破圖 -->
                     <img src="${displayData.img}" onerror="this.src='https://mod-file.dn.nexon.com/prime/inventory/icon/${displayData.itemId}'">
                 </div>
                 <div class="info-row">
@@ -266,17 +275,16 @@
                 </div>
                 <button class="btn-sync">🚀 同步至 GitHub</button>
             `;
-
+    
             card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
             grid.appendChild(card);
-            status.innerText = "✅ 單品查詢成功";
-        } else {
-            status.innerText = "⚠️ 找不到該商品或已下架";
+            status.innerText = `✅ 查詢成功: ${displayData.name}`;
+    
+        } catch (err) {
+            console.error("單品查詢錯誤:", err);
+            status.innerText = "❌ 查詢失敗: " + err.message;
         }
-    } catch (err) {
-        status.innerText = "❌ 查詢失敗: " + err.message;
-    }
-};
+    };
 
     document.getElementById('btn_search').onclick = async function() {
     const input = document.getElementById('target_input').value.trim();

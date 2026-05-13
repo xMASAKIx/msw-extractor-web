@@ -233,6 +233,9 @@
     
             // --- 關鍵修正：針對單品 API 結構進行映射 ---
             // 根據 image_1e0bf5.png 的成功案例，名稱通常在 title 或 name
+            const name = res.itemName || res.title || res.name || "未知裝備";
+            const thumbnail = res.itemThumbnailUrl || res.thumbnail || res.iconUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${itemId}`;
+            
             const displayData = {
                 name: res.title || res.name || res.avatarName || "未知裝備",
                 price: res.price,

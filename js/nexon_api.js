@@ -70,7 +70,9 @@ const NexonAPI = {
                     nickname: profile?.profileName || d.nickname || d.profileName || "未知",
                     profileCode: profile?.profileCode || d.profileCode || "", 
                     itemId: d.itemId || d.id || input,
-                    avatarType: d.avatarType || ""
+                    avatarType: d.avatarType || "",
+                    itemName: d.itemName || d.name || "", 
+                    itemThumbnailUrl: d.itemThumbnailUrl || d.thumbnail || ""
                 };
             }
         } catch (e) { 

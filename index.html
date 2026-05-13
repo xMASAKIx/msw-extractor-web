@@ -207,37 +207,40 @@
     };
 
     // --- 新增：單品查詢按鈕事件 ---
-    document.getElementById('btn_single_search').onclick = async function() {
-        const itemId = document.getElementById('single_id_input').value.trim();
-        const grid = document.getElementById('equip_list');
-        const status = document.getElementById('status-bar');
-        const pBar = document.getElementById('target_profile');
+    // --- 修正：單品查詢按鈕事件 ---
+document.getElementById('btn_single_search').onclick = async function() {
+    const itemId = document.getElementById('single_id_input').value.trim();
+    const grid = document.getElementById('equip_list');
+    const status = document.getElementById('status-bar');
+    const pBar = document.getElementById('target_profile');
 
-        if (!itemId) return;
+    if (!itemId) return;
 
-        status.style.display = "block";
-        status.innerText = "🔍 正在查詢單一商品...";
-        grid.innerHTML = "";
-        pBar.style.display = "none";
+    status.style.display = "block";
+    status.innerText = "🔍 正在查詢單一商品...";
+    grid.innerHTML = "";
+    pBar.style.display = "none";
 
-        try {
-            const realData = await NexonAPI.getRealProductDetail(itemId);
+    try {
+        const realData = await NexonAPI.getRealProductDetail(itemId);
 
-            if (realData && realData.price !== "未上架") {
-                const displayData = {
-                    name: realData.name || "未定義名稱",
-                    price: realData.price,
-                    priceUnit: "wc",
-                    itemId: realData.itemId,
-                    img: `https://mod-file.dn.nexon.com/prime/inventory/icon/${realData.itemId}`,
-                    sellerPpsn: realData.sellerPpsn || "", 
-                    authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
-                    avatarType: realData.avatarType || ""
-                };
+        if (realData && realData.price !== "未上架") {
+            // 修正點：使用更能確保抓到資料的欄位優先級
+            const displayData = {
+                name: realData.name || realData.avatarName || "未知裝備", // 增加 avatarName 備案
+                price: realData.price,
+                priceUnit: "wc",
+                itemId: realData.itemId || itemId, // 如果 API 沒回傳 ID 就用輸入的 ID
+                // 確保圖片路徑正確
+                img: realData.img || realData.iconUrl || `https://mod-file.dn.nexon.com/prime/inventory/icon/${realData.itemId || itemId}`,
+                sellerPpsn: realData.sellerPpsn || "", 
+                authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
+                avatarType: realData.avatarType || ""
+            };
 
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
                     <div class="thumb-box"><img src="${displayData.img}"></div>
                     <div class="info-row">
                         <div class="info-label">📝 名稱</div>
@@ -251,27 +254,28 @@
                         <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
                     </div>
                     <div class="info-row">
-                        <div class="info-label">👕 部位</div>
-                        <div class="info-value" style="color:#fb923c">${displayData.avatarType || '通用'}</div>
-                    </div>
-                    <div class="info-row">
                         <div class="info-label">🆔 商品 ID</div>
                         <div class="info-value">${displayData.itemId}</div>
                         <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
                     </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 縮圖網址</div>
+                        <div class="info-value">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
                     <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
-                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
-                grid.appendChild(card);
-                status.innerText = "✅ 單品查詢成功";
-            } else {
-                status.innerText = "⚠️ 找不到該商品或已下架";
-            }
-        } catch (err) {
-            status.innerText = "❌ 查詢失敗: " + err.message;
+            card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+            grid.appendChild(card);
+            status.innerText = "✅ 單品查詢成功";
+        } else {
+            status.innerText = "⚠️ 找不到該商品或已下架";
         }
-    };
+    } catch (err) {
+        status.innerText = "❌ 查詢失敗: " + err.message;
+    }
+};
 
     document.getElementById('btn_search').onclick = async function() {
     const input = document.getElementById('target_input').value.trim();

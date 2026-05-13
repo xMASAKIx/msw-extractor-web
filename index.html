@@ -208,62 +208,64 @@
 
     // --- 修正：單品查詢按鈕事件 ---
     document.getElementById('btn_single_search').onclick = async function() {
-        const itemId = document.getElementById('single_id_input').value.trim();
-        const grid = document.getElementById('equip_list');
-        const status = document.getElementById('status-bar');
-        const pBar = document.getElementById('target_profile');
-    
-        if (!itemId) return;
-    
-        status.style.display = "block";
-        status.innerText = "🔍 正在查詢單一商品...";
-        grid.innerHTML = "";
-        pBar.style.display = "none";
-    
-        try {
-            const realData = await NexonAPI.getRealProductDetail(itemId);
-    
-            if (realData && realData.price !== "未上架") {
-                // 修正點：使用更能確保抓到資料的欄位優先級
-                const displayData = {
-                    name: realData.name || realData.avatarName || "未知裝備", // 增加 avatarName 備案
-                    price: realData.price,
-                    priceUnit: "wc",
-                    itemId: realData.itemId || itemId, // 如果 API 沒回傳 ID 就用輸入的 ID
-                    // 確保圖片路徑正確
-                    img: realData.img || realData.iconUrl || `https://mod-file.dn.nexon.com/prime/inventory/icon/${realData.itemId || itemId}`,
-                    sellerPpsn: realData.sellerPpsn || "", 
-                    authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
-                    avatarType: realData.avatarType || ""
-                };
+    const itemId = document.getElementById('single_id_input').value.trim();
+    const grid = document.getElementById('equip_list');
+    const status = document.getElementById('status-bar');
+    const pBar = document.getElementById('target_profile');
+
+    if (!itemId) return;
+
+    status.style.display = "block";
+    status.innerText = "🔍 正在查詢單一商品...";
+    grid.innerHTML = "";
+    pBar.style.display = "none";
+
+    try {
+        const realData = await NexonAPI.getRealProductDetail(itemId);
+
+        if (realData && realData.price !== "未上架") {
+            // 修正點：單品 API 的名稱通常在 title，圖片在 iconUrl 或特定 CDN 路徑
+            const displayData = {
+                name: realData.title || realData.name || realData.avatarName || "未知裝備",
+                price: realData.price,
+                priceUnit: "wc",
+                itemId: realData.itemId || itemId,
+                // 優先使用回傳的圖片網址，若無則組合 CDN 路徑
+                img: realData.iconUrl || realData.itemImageUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${realData.itemId || itemId}`,
+                sellerPpsn: realData.sellerPpsn || "", 
+                authorDisplay: realData.profileCode ? `${realData.nickname}#${realData.profileCode}` : (realData.nickname || "未知作者"),
+                avatarType: realData.avatarType || ""
+            };
 
             const card = document.createElement('div');
             card.className = 'item-card';
             card.innerHTML = `
-                    <div class="thumb-box"><img src="${displayData.img}"></div>
-                    <div class="info-row">
-                        <div class="info-label">📝 名稱</div>
-                        <div class="info-value">${displayData.name}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                    </div>
-                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row">
-                        <div class="info-label">👤 作者</div>
-                        <div class="info-value">${displayData.authorDisplay}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">🖼️ 縮圖網址</div>
-                        <div class="info-value">${displayData.img}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                    </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
-                `;
+                <div class="thumb-box">
+                    <img src="${displayData.img}" onerror="this.src='https://mod-file.dn.nexon.com/prime/inventory/icon/${displayData.itemId}'">
+                </div>
+                <div class="info-row">
+                    <div class="info-label">📝 名稱</div>
+                    <div class="info-value">${displayData.name}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                </div>
+                <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
+                <div class="info-row">
+                    <div class="info-label">👤 作者</div>
+                    <div class="info-value">${displayData.authorDisplay}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">🆔 商品 ID</div>
+                    <div class="info-value">${displayData.itemId}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">🖼️ 縮圖網址</div>
+                    <div class="info-value">${displayData.img}</div>
+                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                </div>
+                <button class="btn-sync">🚀 同步至 GitHub</button>
+            `;
 
             card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
             grid.appendChild(card);

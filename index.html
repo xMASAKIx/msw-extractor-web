@@ -83,6 +83,7 @@
             <div id="equip_list" class="item-grid"></div>
         </div>
         <div class="right">
+            <!-- 新增：單品快速查詢，保持對齊高度 -->
             <div class="card">
                 <h3 style="margin-top: 0;">🔍 商品ID查詢</h3>
                 <div class="search-group">
@@ -240,8 +241,7 @@
                     itemId: res.itemId || itemId,
                     img: imgUrl,
                     authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
-                    avatarType: res.avatarType || "UNKNOWN",
-                    ruid: res.ruid || res.resourceId || "無"
+                    avatarType: res.avatarType || ""
                 };
     
                 const card = document.createElement('div');
@@ -253,25 +253,10 @@
                     <div class="info-row">
                         <div class="info-label">📝 名稱</div>
                         <div class="info-value">${displayData.name}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
                     </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">wc</span></div>
-                    <div class="info-row">
-                        <div class="info-label">👕 部位</div>
-                        <div class="info-value" style="color: #60a5fa; font-weight: bold;">${displayData.avatarType}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.avatarType}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">💎 RUID</div>
-                        <div class="info-value" style="color: #e11d48;">${displayData.ruid}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.ruid}', this)">📋</button>
-                    </div>
                     <div class="info-row"><div class="info-label">👤 上傳者</div><div class="info-value">${displayData.authorDisplay}</div></div>
-                    <div class="info-row">
-                        <div class="info-label">🆔 商品 ID</div>
-                        <div class="info-value">${displayData.itemId}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                    </div>
+                    <div class="info-row"><div class="info-label">🆔 商品 ID</div><div class="info-value">${displayData.itemId}</div></div>
                     <div class="info-row">
                         <div class="info-label">🖼️ 網址</div>
                         <div class="info-value">${displayData.img}</div>
@@ -290,37 +275,36 @@
             status.innerText = "❌ 查詢錯誤: " + err.message;
         }
     };
-
     document.getElementById('btn_search').onclick = async function() {
-        const input = document.getElementById('target_input').value.trim();
-        const status = document.getElementById('status-bar');
-        const grid = document.getElementById('equip_list');
-        const pBar = document.getElementById('target_profile');
+    const input = document.getElementById('target_input').value.trim();
+    const status = document.getElementById('status-bar');
+    const grid = document.getElementById('equip_list');
+    const pBar = document.getElementById('target_profile');
 
-        if (!input) return;
+    if (!input) return;
 
-        status.style.display = "block";
-        status.innerText = "🔄 正在搜尋玩家造型...";
-        grid.innerHTML = "";
-        pBar.style.display = "none";
+    status.style.display = "block";
+    status.innerText = "🔄 正在搜尋玩家造型...";
+    grid.innerHTML = "";
+    pBar.style.display = "none";
 
-        try {
-            UserAPI.getProfile(input).then(data => {
-                pBar.style.display = "flex";
-                document.getElementById('p_img').src = data.profileImageUrl;
-                document.getElementById('p_name').innerText = data.nickname;
-                document.getElementById('p_code').innerText = `#${data.profileCode}`;
-                document.getElementById('p_ppsn').innerText = data.ppsn;
-            }).catch(e => {
-                console.error("玩家造型載入失敗 請重新載入Token", e);
-            });
+    try {
+        UserAPI.getProfile(input).then(data => {
+            pBar.style.display = "flex";
+            document.getElementById('p_img').src = data.profileImageUrl;
+            document.getElementById('p_name').innerText = data.nickname;
+            document.getElementById('p_code').innerText = `#${data.profileCode}`;
+            document.getElementById('p_ppsn').innerText = data.ppsn;
+        }).catch(e => {
+            console.error("玩家造型載入失敗 請重新載入Token", e);
+        });
 
-            const rawItems = await NexonAPI.getEquipList(input);
-            
-            if (!rawItems || rawItems.length === 0) {
-                status.innerText = "⚠️ 找不到玩家穿戴中的造型";
-                return;
-            }
+        const rawItems = await NexonAPI.getEquipList(input);
+        
+        if (!rawItems || rawItems.length === 0) {
+            status.innerText = "⚠️ 找不到玩家穿戴中的造型";
+            return;
+        }
 
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
@@ -334,8 +318,7 @@
                     authorDisplay: (realData && realData.profileCode) 
                         ? `${realData.nickname}#${realData.profileCode}` 
                         : (realData?.nickname || "未上架"),
-                    avatarType: item.avatarType || realData?.avatarType || "UNKNOWN",
-                    ruid: item.ruid || item.resourceId || realData?.ruid || realData?.resourceId || "無"
+                    avatarType: item.avatarType
                 };
 
                 const card = document.createElement('div');
@@ -348,16 +331,6 @@
                         <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
                     </div>
                     <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                    <div class="info-row">
-                        <div class="info-label">👕 部位</div>
-                        <div class="info-value" style="color: #60a5fa; font-weight: bold;">${displayData.avatarType}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.avatarType}', this)">📋</button>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">💎 RUID</div>
-                        <div class="info-value" style="color: #e11d48;">${displayData.ruid}</div>
-                        <button class="copy-btn" onclick="copy('${displayData.ruid}', this)">📋</button>
-                    </div>
                     <div class="info-row">
                         <div class="info-label">👤 上傳者</div>
                         <div class="info-value">${displayData.authorDisplay}</div>
@@ -380,10 +353,10 @@
                 grid.appendChild(card);
             }
             status.innerText = `✅ 已同步完成 (${new Date().toLocaleTimeString()})`;
-        } catch (err) {
-            status.innerText = "❌ 錯誤: " + err.message;
-        }
-    };
+    } catch (err) {
+        status.innerText = "❌ 錯誤: " + err.message;
+    }
+};
 
     async function sync(btn, itemData) {
         const originalText = btn.innerText;
@@ -418,8 +391,7 @@
                 "keyword": itemData.name,
                 "wc": (itemData.price === "未知" || itemData.price === "未上架") ? 0 : parseInt(itemData.price),
                 "author": String(itemData.sellerPpsn || ""),
-                "avatartype": itemData.avatarType || "",
-                "ruid": itemData.ruid || ""
+                "avatartype": itemData.avatarType || ""
             };
 
             const existsIndex = currentItems.findIndex(i => String(i.id) === newData.id);

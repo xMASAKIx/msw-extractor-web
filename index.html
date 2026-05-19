@@ -270,6 +270,7 @@
                     img: imgUrl,
                     authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
                     avatarType: res.avatarType || ""
+                    sellerPpsn: res.sellerPpsn || "" // 🛠️ 補上這一行，把作者的 PPSN 抓進來！
                 };
     
                 const card = document.createElement('div');

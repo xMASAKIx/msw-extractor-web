@@ -30,7 +30,6 @@
     .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
     .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
     .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
-    .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
     .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; }
     .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
     .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
@@ -154,31 +153,34 @@
         }
         initImportFeature();
         
-        // 🚀 新增：檢查網址參數是否帶有 search_id
-        checkUrlParameter();
+        // 🚀 核心更新：檢查網址參數（同時支援 Discord 帶過來的商品 ID 或玩家 ID）
+        checkUrlParameters();
     };
 
-    // 🚀 新增：解析網址參數並模擬自動點擊搜尋
-    function checkUrlParameter() {
+    // 🚀 核心更新：解析網址參數並模擬自動點擊搜尋
+    function checkUrlParameters() {
         const urlParams = new URLSearchParams(window.location.search);
-        const targetId = urlParams.get('search_id');
+        const targetId = urlParams.get('search_id'); // 商品 ID 參數
+        const playerId = urlParams.get('player_id'); // 新增：玩家 ID 參數
         
+        // 狀況 A：如果網址帶有商品 ID
         if (targetId) {
-            console.log(`🎯 偵測到從 Discord 帶過來的商品 ID: ${targetId}，準備自動搜尋...`);
-            
+            console.log(`🎯 偵測到商品 ID: ${targetId}，準備自動搜尋...`);
             const searchInput = document.getElementById("single_id_input"); 
             const searchButton = document.getElementById("btn_single_search");  
-            
             if (searchInput && searchButton) {
-                searchInput.value = targetId; // 自動填入商品 ID 到單品快速查詢框
-                
-                // 延遲 0.5 秒再觸發點擊，給網頁基礎腳本與快取預留載入時間
-                setTimeout(() => {
-                    searchButton.click(); 
-                    console.log("✅ 已完成自動搜尋！");
-                }, 500);
-            } else {
-                console.warn("❌ 找不到網頁上的單品快速查詢輸入框或按鈕。");
+                searchInput.value = targetId;
+                setTimeout(() => { searchButton.click(); }, 500);
+            }
+        } 
+        // 狀況 B：如果網址帶有玩家 ID (5碼或 PPSN)
+        else if (playerId) {
+            console.log(`🎯 偵測到網址帶有玩家 ID: ${playerId}，準備自動搜尋...`);
+            const playerInput = document.getElementById("target_input");
+            const playerButton = document.getElementById("btn_search");
+            if (playerInput && playerButton) {
+                playerInput.value = playerId;
+                setTimeout(() => { playerButton.click(); }, 500);
             }
         }
     }
@@ -235,29 +237,29 @@
         alert("所有憑證已同步至瀏覽器快取！");
     };
 
-    // --- 修正：商品ID查詢按鈕 ---
+    // --- 商品ID查詢按鈕 ---
     document.getElementById('btn_single_search').onclick = async function() {
         const itemId = document.getElementById('single_id_input').value.trim();
         const grid = document.getElementById('equip_list');
         const status = document.getElementById('status-bar');
     
         if (!itemId) return;
+
+        // 🚀 新增：當點擊搜尋商品時，靜態修改瀏覽器網址為 ?search_id=XXXXX 方便記錄與分享
+        history.pushState(null, '', `?search_id=${itemId}`);
+
         status.style.display = "block";
         status.innerText = "🔍 正在搜尋造型資料...";
         grid.innerHTML = "";
     
         try {
             const res = await NexonAPI.getRealProductDetail(itemId);
-            
-            // --- 除錯用：請按 F12 打開 Console 查看這個印出的結果 ---
             console.log("Nexon API 原始回傳值:", res);
     
             if (res && res.price !== "未上架") {
-                // 深度掃描可能存放名稱的欄位 (包含 MSW 常見的各種結構)
                 const name = res.title || res.name || res.itemName || res.avatarName || 
                              (res.data && res.data.name) || (res.result && res.result.name) || "未知裝備";
     
-                // 深度掃描圖片網址
                 const imgUrl = res.iconUrl || res.itemImageUrl || res.itemThumbnailUrl || res.thumbnail || 
                                (res.data && res.data.thumbnail) || 
                                `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${itemId}`;
@@ -270,7 +272,7 @@
                     img: imgUrl,
                     authorDisplay: res.profileCode ? `${res.nickname}#${res.profileCode}` : (res.nickname || "未知作者"),
                     avatarType: res.avatarType || "",
-                    sellerPpsn: res.sellerPpsn || "" // 🛠️ 補上這一行，把作者的 PPSN 抓進來！
+                    sellerPpsn: res.sellerPpsn || "" // 🛠️ 前面修正的：補上作者 PPSN
                 };
     
                 const card = document.createElement('div');
@@ -305,6 +307,7 @@
         }
     };
     
+    // --- 玩家造型查詢按鈕 ---
     document.getElementById('btn_search').onclick = async function() {
         const input = document.getElementById('target_input').value.trim();
         const status = document.getElementById('status-bar');
@@ -312,6 +315,9 @@
         const pBar = document.getElementById('target_profile');
 
         if (!input) return;
+
+        // 🚀 新增：當點擊搜尋玩家時，靜態修改瀏覽器網址為 ?player_id=XXXXX 方便記錄與分享
+        history.pushState(null, '', `?player_id=${input}`);
 
         status.style.display = "block";
         status.innerText = "🔄 正在搜尋玩家造型...";
@@ -376,7 +382,7 @@
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
-                    <button class="btn-sync">🚀 同步至 GitHub</button>
+                    <button class="btn-sync">🚀 同步至正版商品ID網站</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
@@ -395,7 +401,7 @@
         try {
             const token = localStorage.getItem('github_token_v1');
             const { owner, repo, path } = GITHUB_CONFIG;
-            if (!token) throw new Error("請先儲存 GitHub Token");
+            if (!token) throw new Error("請先儲任 GitHub Token");
 
             const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
             const commonHeaders = {

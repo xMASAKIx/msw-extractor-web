@@ -30,6 +30,7 @@
     .item-card { background: #1c1c21; border-radius: 20px; padding: 24px; border: 1px solid #2d2d35; transition: transform 0.2s; }
     .thumb-box { background: #141419; border-radius: 12px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; overflow: hidden; }
     .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
+    .thumb-box img { max-width: 100%; max-height: 140px; image-rendering: pixelated; }
     .price-text { font-size: 28px; color: rgb(102, 178, 127); font-weight: bold; margin-bottom: 15px; }
     .info-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
     .info-label { color: #808ca6; width: 85px; flex-shrink: 0; }
@@ -83,7 +84,6 @@
             <div id="equip_list" class="item-grid"></div>
         </div>
         <div class="right">
-            <!-- 新增：單品快速查詢，保持對齊高度 -->
             <div class="card">
                 <h3 style="margin-top: 0;">🔍 商品ID查詢</h3>
                 <div class="search-group">
@@ -153,7 +153,35 @@
             } catch(e) { console.error("解析儲存帳號失敗", e); }
         }
         initImportFeature();
+        
+        // 🚀 新增：檢查網址參數是否帶有 search_id
+        checkUrlParameter();
     };
+
+    // 🚀 新增：解析網址參數並模擬自動點擊搜尋
+    function checkUrlParameter() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetId = urlParams.get('search_id');
+        
+        if (targetId) {
+            console.log(`🎯 偵測到從 Discord 帶過來的商品 ID: ${targetId}，準備自動搜尋...`);
+            
+            const searchInput = document.getElementById("single_id_input"); 
+            const searchButton = document.getElementById("btn_single_search");  
+            
+            if (searchInput && searchButton) {
+                searchInput.value = targetId; // 自動填入商品 ID 到單品快速查詢框
+                
+                // 延遲 0.5 秒再觸發點擊，給網頁基礎腳本與快取預留載入時間
+                setTimeout(() => {
+                    searchButton.click(); 
+                    console.log("✅ 已完成自動搜尋！");
+                }, 500);
+            } else {
+                console.warn("❌ 找不到網頁上的單品快速查詢輸入框或按鈕。");
+            }
+        }
+    }
 
     function initImportFeature() {
         const fileSelector = document.getElementById('file_selector');
@@ -275,36 +303,37 @@
             status.innerText = "❌ 查詢錯誤: " + err.message;
         }
     };
+    
     document.getElementById('btn_search').onclick = async function() {
-    const input = document.getElementById('target_input').value.trim();
-    const status = document.getElementById('status-bar');
-    const grid = document.getElementById('equip_list');
-    const pBar = document.getElementById('target_profile');
+        const input = document.getElementById('target_input').value.trim();
+        const status = document.getElementById('status-bar');
+        const grid = document.getElementById('equip_list');
+        const pBar = document.getElementById('target_profile');
 
-    if (!input) return;
+        if (!input) return;
 
-    status.style.display = "block";
-    status.innerText = "🔄 正在搜尋玩家造型...";
-    grid.innerHTML = "";
-    pBar.style.display = "none";
+        status.style.display = "block";
+        status.innerText = "🔄 正在搜尋玩家造型...";
+        grid.innerHTML = "";
+        pBar.style.display = "none";
 
-    try {
-        UserAPI.getProfile(input).then(data => {
-            pBar.style.display = "flex";
-            document.getElementById('p_img').src = data.profileImageUrl;
-            document.getElementById('p_name').innerText = data.nickname;
-            document.getElementById('p_code').innerText = `#${data.profileCode}`;
-            document.getElementById('p_ppsn').innerText = data.ppsn;
-        }).catch(e => {
-            console.error("玩家造型載入失敗 請重新載入Token", e);
-        });
+        try {
+            UserAPI.getProfile(input).then(data => {
+                pBar.style.display = "flex";
+                document.getElementById('p_img').src = data.profileImageUrl;
+                document.getElementById('p_name').innerText = data.nickname;
+                document.getElementById('p_code').innerText = `#${data.profileCode}`;
+                document.getElementById('p_ppsn').innerText = data.ppsn;
+            }).catch(e => {
+                console.error("玩家造型載入失敗 請重新載入Token", e);
+            });
 
-        const rawItems = await NexonAPI.getEquipList(input);
-        
-        if (!rawItems || rawItems.length === 0) {
-            status.innerText = "⚠️ 找不到玩家穿戴中的造型";
-            return;
-        }
+            const rawItems = await NexonAPI.getEquipList(input);
+            
+            if (!rawItems || rawItems.length === 0) {
+                status.innerText = "⚠️ 找不到玩家穿戴中的造型";
+                return;
+            }
 
             for (let item of rawItems) {
                 const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
@@ -346,17 +375,17 @@
                         <div class="info-value">${displayData.img}</div>
                         <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
                     </div>
-                    <button class="btn-sync">🚀 同步至正版商品ID網站</button>
+                    <button class="btn-sync">🚀 同步至 GitHub</button>
                 `;
 
                 card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
                 grid.appendChild(card);
             }
             status.innerText = `✅ 已同步完成 (${new Date().toLocaleTimeString()})`;
-    } catch (err) {
-        status.innerText = "❌ 錯誤: " + err.message;
-    }
-};
+        } catch (err) {
+            status.innerText = "❌ 錯誤: " + err.message;
+        }
+    };
 
     async function sync(btn, itemData) {
         const originalText = btn.innerText;

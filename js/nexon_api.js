@@ -97,7 +97,40 @@ const NexonAPI = {
         const json = await this.proxyFetch(url);
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
         return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+    },
+    // 新增：利用賣家的 PPSN 撈取他上架的所有商品列表
+    async function getSellerProducts(sellerPpsn) {
+        // 這裡使用 Nexon 商店的搜尋接口，將 sellerPpsn 帶入查詢
+        const url = `https://mverse-api.nexon.com/marketplace/v1/products/search?keyword=${sellerPpsn}&page=1&size=60&sortType=LATEST&avatarType=`;
+        
+        // 取得你儲存在網頁中的 Token
+        const savedAccounts = localStorage.getItem('msw_accounts_v1');
+        let token = "";
+        if (savedAccounts) {
+            try {
+                const accounts = JSON.parse(savedAccounts);
+                if (accounts.length > 0) token = accounts[0].token || '';
+            } catch(e) { console.error(e); }
+        }
+    
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Authorization": token ? `Bearer ${token.trim()}` : "",
+                "Accept": "application/json"
+            }
+        });
+    
+        if (!response.ok) {
+            throw new Error(`無法撈取賣家商品商店 (錯誤碼: ${response.status})`);
+        }
+    
+        const json = await response.json();
+        // Nexon 搜尋回傳的商品列表通常在 data.products 或 items 裡面，根據實際結構返回陣列
+        return json.data?.products || json.data?.items || [];
     }
 };
 
-window.NexonAPI = NexonAPI;
+window.NexonAPI = {
+    getSellerProducts: getSellerProducts
+};

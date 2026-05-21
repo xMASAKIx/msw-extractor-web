@@ -15,11 +15,10 @@ const NexonAPI = {
         let finalUrl = url;
         if (!isProfile) {
             const separator = url.includes('?') ? '&' : '?';
-            // 使用更簡潔的 cache buster，避免 URL 過長導致代理失敗
             finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
-        // 截圖顯示 allorigins 失敗，這裡強制改用 corsproxy.io
+        // 強制使用 corsproxy.io 防止 CORS 問題
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
         try {
@@ -35,13 +34,11 @@ const NexonAPI = {
         }
     },
 
-// ... 前面的 getHeaders, proxyFetch 保持不變 ...
-
-    // 新增：透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
+    // 透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
     async getProfileDetail(ppsn) {
         if (!ppsn || ppsn === "N/A") return null;
         const url = `https://mverse-api.nexon.com/social/v1/profile/${ppsn}`;
-        const res = await this.proxyFetch(url, true); // 使用 Profile 模式請求
+        const res = await this.proxyFetch(url, true);
         return res?.data || null;
     },
 
@@ -52,13 +49,11 @@ const NexonAPI = {
         if (isId) {
             url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
         } else {
-            // 搜尋時加入亂數標籤，強制 Nexon 伺服器回傳最新結果
             url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}&_cb=${Date.now()}`;
         }
 
         try {
             const res = await this.proxyFetch(url);
-            // 這裡要相容不同的資料結構
             const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0] || res?.data?.[0]);
 
             if (d) {
@@ -78,7 +73,6 @@ const NexonAPI = {
         } catch (e) { 
             console.error("獲取商品詳情失敗", e); 
         }
-        // 如果商城完全搜不到，至少回傳一個帶有 ID 的基本物件，避免畫面壞掉
         return { price: "未上架", sellerPpsn: "", nickname: "未知", profileCode: "", itemId: input };
     },
 
@@ -98,39 +92,18 @@ const NexonAPI = {
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
         return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
     },
-    // 新增：利用賣家的 PPSN 撈取他上架的所有商品列表
-    async function getSellerProducts(sellerPpsn) {
-        // 這裡使用 Nexon 商店的搜尋接口，將 sellerPpsn 帶入查詢
+
+    // 🛠️ 修正後：利用強大的 proxyFetch 自動代入 Token 並解決網頁 CORS 限制
+    async getSellerProducts(sellerPpsn) {
         const url = `https://mverse-api.nexon.com/marketplace/v1/products/search?keyword=${sellerPpsn}&page=1&size=60&sortType=LATEST&avatarType=`;
         
-        // 取得你儲存在網頁中的 Token
-        const savedAccounts = localStorage.getItem('msw_accounts_v1');
-        let token = "";
-        if (savedAccounts) {
-            try {
-                const accounts = JSON.parse(savedAccounts);
-                if (accounts.length > 0) token = accounts[0].token || '';
-            } catch(e) { console.error(e); }
-        }
-    
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": token ? `Bearer ${token.trim()}` : "",
-                "Accept": "application/json"
-            }
-        });
-    
-        if (!response.ok) {
-            throw new Error(`無法撈取賣家商品商店 (錯誤碼: ${response.status})`);
-        }
-    
-        const json = await response.json();
-        // Nexon 搜尋回傳的商品列表通常在 data.products 或 items 裡面，根據實際結構返回陣列
-        return json.data?.products || json.data?.items || [];
+        // 使用 true (Profile 模式) 繞過時間戳，直接調用代理
+        const json = await this.proxyFetch(url, true);
+        
+        // 兼容不同的 Nexon 商店回傳結構
+        return json?.data?.products || json?.data?.items || [];
     }
 };
 
-window.NexonAPI = {
-    getSellerProducts: getSellerProducts
-};
+// 🛠️ 修正後：完整匯出整個物件，不會閹割掉其他功能
+window.NexonAPI = NexonAPI;

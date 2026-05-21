@@ -308,111 +308,91 @@
     };
     
     // --- 玩家造型查詢按鈕 ---
-    // --- 升級版：抓取作者上傳的所有商品列表 ---
-document.getElementById('btn_search').onclick = async function() {
-    let input = document.getElementById('target_input').value.trim();
-    const status = document.getElementById('status-bar');
-    const grid = document.getElementById('equip_list');
-    const pBar = document.getElementById('target_profile');
+    document.getElementById('btn_search').onclick = async function() {
+        const input = document.getElementById('target_input').value.trim();
+        const status = document.getElementById('status-bar');
+        const grid = document.getElementById('equip_list');
+        const pBar = document.getElementById('target_profile');
 
-    if (!input) return;
+        if (!input) return;
 
-    // 移除使用者可能不小心輸入的 # 號
-    if (input.startsWith('#')) {
-        input = input.substring(1);
-    }
-
-    status.style.display = "block";
-    status.innerText = "🔄 正在解析作者身份...";
-    grid.innerHTML = "";
-    pBar.style.display = "none";
-
-    try {
-        let finalPpsn = input;
-        
-        // 1. 如果輸入的是 5碼ID，先逆查出真實 PPSN
-        if (input.length <= 6) {
-            status.innerText = "🔍 偵測到 5碼ID，正在向 Nexon 逆查作者 PPSN...";
-            const pCodeRes = await fetch(`https://mverse-api.nexon.com/profile/v1/home/profileCode/${input}?v=${Date.now()}`);
-            if (!pCodeRes.ok) throw new Error("找不到該 5碼ID 對應的作者");
-            const pCodeJson = await pCodeRes.json();
-            
-            finalPpsn = pCodeJson.data?.ppsn;
-            if (!finalPpsn) throw new Error("該作者未開放隱私或資料解析失敗");
-        }
-
-        // 修改瀏覽器網址方便複製分享
+        // 🚀 新增：當點擊搜尋玩家時，靜態修改瀏覽器網址為 ?player_id=XXXXX 方便記錄與分享
         history.pushState(null, '', `?player_id=${input}`);
 
-        // 渲染上方作者狀態列
-        UserAPI.getProfile(finalPpsn).then(data => {
-            pBar.style.display = "flex";
-            document.getElementById('p_img').src = data.profileImageUrl;
-            document.getElementById('p_name').innerText = data.nickname;
-            document.getElementById('p_code').innerText = `#${data.profileCode}`;
-            document.getElementById('p_ppsn').innerText = data.ppsn;
-        }).catch(e => { console.error("作者資料載入失敗", e); });
+        status.style.display = "block";
+        status.innerText = "🔄 正在搜尋玩家造型...";
+        grid.innerHTML = "";
+        pBar.style.display = "none";
 
-        // 2. 🚀 核心更動：改為撈取該作者「所有上架商品」
-        status.innerText = "🛍️ 正在抓取該作者上傳的所有商品列表...";
-        const storeItems = await NexonAPI.getSellerProducts(finalPpsn);
-        
-        if (!storeItems || storeItems.length === 0) {
-            status.innerText = "⚠️ 該作者目前沒有上架任何商品，或商店 API 被限制";
-            return;
+        try {
+            UserAPI.getProfile(input).then(data => {
+                pBar.style.display = "flex";
+                document.getElementById('p_img').src = data.profileImageUrl;
+                document.getElementById('p_name').innerText = data.nickname;
+                document.getElementById('p_code').innerText = `#${data.profileCode}`;
+                document.getElementById('p_ppsn').innerText = data.ppsn;
+            }).catch(e => {
+                console.error("玩家造型載入失敗 請重新載入Token", e);
+            });
+
+            const rawItems = await NexonAPI.getEquipList(input);
+            
+            if (!rawItems || rawItems.length === 0) {
+                status.innerText = "⚠️ 找不到玩家穿戴中的造型";
+                return;
+            }
+
+            for (let item of rawItems) {
+                const realData = await NexonAPI.getRealProductDetail(item.itemId || item.itemName);
+                const displayData = {
+                    name: item.itemName,
+                    price: realData?.price !== undefined ? realData.price : "未知",
+                    priceUnit: (realData && realData.price !== "未上架") ? "wc" : "",
+                    itemId: realData?.itemId || item.itemId || "未上架",
+                    img: item.itemImageUrl || item.itemThumbnailUrl,
+                    sellerPpsn: realData?.sellerPpsn || "", 
+                    authorDisplay: (realData && realData.profileCode) 
+                        ? `${realData.nickname}#${realData.profileCode}` 
+                        : (realData?.nickname || "未上架"),
+                    avatarType: item.avatarType
+                };
+
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div class="thumb-box"><img src="${displayData.img}"></div>
+                    <div class="info-row">
+                        <div class="info-label">📝 名稱</div>
+                        <div class="info-value">${displayData.name}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
+                    </div>
+                    <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
+                    <div class="info-row">
+                        <div class="info-label">👤 上傳者</div>
+                        <div class="info-value">${displayData.authorDisplay}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.authorDisplay}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🆔 商品 ID</div>
+                        <div class="info-value">${displayData.itemId}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">🖼️ 網址</div>
+                        <div class="info-value">${displayData.img}</div>
+                        <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
+                    </div>
+                    <button class="btn-sync">🚀 同步至正版商品ID網站</button>
+                `;
+
+                card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
+                grid.appendChild(card);
+            }
+            status.innerText = `✅ 已同步完成 (${new Date().toLocaleTimeString()})`;
+        } catch (err) {
+            status.innerText = "❌ 錯誤: " + err.message;
         }
-
-        // 3. 迴圈渲染作者的所有商店商品
-        for (let item of storeItems) {
-            // 這裡直接讀取搜尋結果的欄位，通常搜尋結果就已經包含價格與作者資訊，不一定需要再重複 getRealProductDetail
-            const displayData = {
-                name: item.title || item.name || item.itemName || "未定名商品",
-                price: item.price !== undefined ? item.price : "未知",
-                priceUnit: item.price ? "wc" : "",
-                itemId: item.productId || item.itemId,
-                img: item.iconUrl || item.thumbnailUrl || `https://mod-file.dn.nexoncdn.co/prime/inventory/icon/${item.productId || item.itemId}`,
-                sellerPpsn: finalPpsn, 
-                authorDisplay: item.nickname ? `${item.nickname}` : "該作者",
-                avatarType: item.avatarType || ""
-            };
-
-            const card = document.createElement('div');
-            card.className = 'item-card';
-            card.innerHTML = `
-                <div class="thumb-box">
-                    <img src="${displayData.img}" onerror="this.src='https://mod-file.dn.nexon.com/prime/inventory/icon/${displayData.itemId}'">
-                </div>
-                <div class="info-row">
-                    <div class="info-label">📝 名稱</div>
-                    <div class="info-value">${displayData.name}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.name}', this)">📋</button>
-                </div>
-                <div class="price-text">${displayData.price} <span style="font-size:14px;color:#888">${displayData.priceUnit}</span></div>
-                <div class="info-row">
-                    <div class="info-label">👤 上傳者</div>
-                    <div class="info-value">${displayData.authorDisplay}</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">🆔 商品 ID</div>
-                    <div class="info-value">${displayData.itemId}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.itemId}', this)">📋</button>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">🖼️ 網址</div>
-                    <div class="info-value">${displayData.img}</div>
-                    <button class="copy-btn" onclick="copy('${displayData.img}', this)">📋</button>
-                </div>
-                <button class="btn-sync">🚀 同步至正版商品ID網站</button>
-            `;
-
-            card.querySelector('.btn-sync').onclick = (e) => sync(e.target, displayData);
-            grid.appendChild(card);
-        }
-        status.innerText = `✅ 成功抓取該作者的 ${storeItems.length} 個商品！(${new Date().toLocaleTimeString()})`;
-    } catch (err) {
-        status.innerText = "❌ 錯誤: " + err.message;
-    }
-};
+    };
 
     async function sync(btn, itemData) {
         const originalText = btn.innerText;

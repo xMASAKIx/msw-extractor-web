@@ -20,7 +20,7 @@ const NexonAPI = {
         }
         
         // 截圖顯示 allorigins 失敗，這裡強制改用 corsproxy.io
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(finalUrl)}`;
+        const proxyUrl = `https://thingproxy.freeboard.io/fetch/${finalUrl}`;
 
         try {
             const response = await fetch(proxyUrl, { 

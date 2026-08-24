@@ -19,7 +19,7 @@ const NexonAPI = {
         }
         
         // 改用你自己的 Cloudflare Worker 代理
-        const proxyUrl = `https://soft-dew-20d5.fujijisa.workers.dev/?url=${encodeURIComponent(finalUrl)}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
 
         try {
             const response = await fetch(proxyUrl, { 

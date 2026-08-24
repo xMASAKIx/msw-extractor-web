@@ -15,12 +15,11 @@ const NexonAPI = {
         let finalUrl = url;
         if (!isProfile) {
             const separator = url.includes('?') ? '&' : '?';
-            // 使用更簡潔的 cache buster，避免 URL 過長導致代理失敗
             finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
-        // 截圖顯示 allorigins 失敗，這裡強制改用 corsproxy.io
-        const proxyUrl = `https://thingproxy.freeboard.io/fetch/${finalUrl}`;
+        // 改用你自己的 Cloudflare Worker 代理
+        const proxyUrl = `https://soft-dew-20d5.fujijisa.workers.dev/?url=${encodeURIComponent(finalUrl)}`;
 
         try {
             const response = await fetch(proxyUrl, { 

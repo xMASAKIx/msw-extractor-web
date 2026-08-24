@@ -12,27 +12,25 @@ const NexonAPI = {
     },
 
     async proxyFetch(url, isProfile = false) {
-        let finalUrl = url;
-        if (!isProfile) {
-            const separator = url.includes('?') ? '&' : '?';
-            finalUrl = url + `${separator}_t=${Date.now()}`;
-        }
-        
-        // 改用你自己的 Cloudflare Worker 代理
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`;
-
-        try {
-            const response = await fetch(proxyUrl, { 
-                headers: this.getHeaders(),
-                cache: 'no-store' 
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
-        } catch (e) {
-            console.error("代理請求失敗:", e);
-            return null;
-        }
-    },
+            let finalUrl = url;
+            if (!isProfile) {
+                const separator = url.includes('?') ? '&' : '?';
+                finalUrl = url + `${separator}_t=${Date.now()}`;
+            }
+            
+            // 直接使用原生 fetch，油猴腳本會在背景自動攔截並處理跨域與 403
+            try {
+                const response = await fetch(finalUrl, { 
+                    headers: this.getHeaders(),
+                    cache: 'no-store' 
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (e) {
+                console.error("請求失敗:", e);
+                return null;
+            }
+        },
 
 // ... 前面的 getHeaders, proxyFetch 保持不變 ...
 

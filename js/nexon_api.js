@@ -18,8 +18,18 @@ const NexonAPI = {
             finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
+        // 如果有安裝並啟動油猴腳本，直接透過 GM 橋樑發送（100% 繞過 CORS）
+        if (window.GM_nexonFetch) {
+            try {
+                return await window.GM_nexonFetch(finalUrl, this.getHeaders());
+            } catch (e) {
+                console.error("油猴代理請求失敗:", e);
+                return null;
+            }
+        }
+
+        //  fallback：如果沒裝油猴的備用方案
         try {
-            // 嘗試直接請求（適用於有裝擴充功能或特殊環境）
             const response = await fetch(finalUrl, { 
                 headers: this.getHeaders(),
                 cache: 'no-store' 
@@ -27,17 +37,7 @@ const NexonAPI = {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         } catch (e) {
-            console.warn("直接請求遭阻擋或失敗，嘗試透過備用方案...", e);
-            
-            // 備用方案：如果直接 fetch 失敗，改用其他不會被直接擋掉的輕量代理，或回傳空物件避免畫面死掉
-            try {
-                const backupProxy = `https://corsfix.com/?${encodeURIComponent(finalUrl)}`;
-                const res = await fetch(backupProxy, { headers: this.getHeaders() });
-                if (res.ok) return await res.json();
-            } catch (err) {
-                console.error("備用代理也失敗:", err);
-            }
-            
+            console.error("直接請求失敗 (請確認是否有安裝並啟用油猴腳本)", e);
             return null;
         }
     },

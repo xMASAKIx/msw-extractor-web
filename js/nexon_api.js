@@ -18,26 +18,18 @@ const NexonAPI = {
             finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
-        // 如果有安裝並啟動油猴腳本，直接透過 GM 橋樑發送（100% 繞過 CORS）
-        if (window.GM_nexonFetch) {
-            try {
-                return await window.GM_nexonFetch(finalUrl, this.getHeaders());
-            } catch (e) {
-                console.error("油猴代理請求失敗:", e);
-                return null;
-            }
-        }
+        // 將目標網址包裝後送到你本機的代理伺服器
+        const proxyUrl = `http://localhost:3000/?url=${encodeURIComponent(finalUrl)}`;
 
-        //  fallback：如果沒裝油猴的備用方案
         try {
-            const response = await fetch(finalUrl, { 
+            const response = await fetch(proxyUrl, { 
                 headers: this.getHeaders(),
                 cache: 'no-store' 
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         } catch (e) {
-            console.error("直接請求失敗 (請確認是否有安裝並啟用油猴腳本)", e);
+            console.error("本地代理請求失敗:", e);
             return null;
         }
     },

@@ -12,25 +12,35 @@ const NexonAPI = {
     },
 
     async proxyFetch(url, isProfile = false) {
-            let finalUrl = url;
-            if (!isProfile) {
-                const separator = url.includes('?') ? '&' : '?';
-                finalUrl = url + `${separator}_t=${Date.now()}`;
+        let finalUrl = url;
+        if (!isProfile) {
+            const separator = url.includes('?') ? '&' : '?';
+            finalUrl = url + `${separator}_t=${Date.now()}`;
+        }
+        
+        try {
+            // 嘗試直接請求（適用於有裝擴充功能或特殊環境）
+            const response = await fetch(finalUrl, { 
+                headers: this.getHeaders(),
+                cache: 'no-store' 
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (e) {
+            console.warn("直接請求遭阻擋或失敗，嘗試透過備用方案...", e);
+            
+            // 備用方案：如果直接 fetch 失敗，改用其他不會被直接擋掉的輕量代理，或回傳空物件避免畫面死掉
+            try {
+                const backupProxy = `https://corsfix.com/?${encodeURIComponent(finalUrl)}`;
+                const res = await fetch(backupProxy, { headers: this.getHeaders() });
+                if (res.ok) return await res.json();
+            } catch (err) {
+                console.error("備用代理也失敗:", err);
             }
             
-            // 直接使用原生 fetch，油猴腳本會在背景自動攔截並處理跨域與 403
-            try {
-                const response = await fetch(finalUrl, { 
-                    headers: this.getHeaders(),
-                    cache: 'no-store' 
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
-            } catch (e) {
-                console.error("請求失敗:", e);
-                return null;
-            }
-        },
+            return null;
+        }
+    },
 
 // ... 前面的 getHeaders, proxyFetch 保持不變 ...
 

@@ -90,12 +90,16 @@ const NexonAPI = {
 
     async getEquipList(input) {
         let ppsn = input.trim();
-        if (ppsn.length === 5) ppsn = await this.getPpsnByCode(ppsn);
+        // 修改點 1：長度為 5 或 6 時都進行轉換
+        if (ppsn.length === 5 || ppsn.length === 6) {
+            ppsn = await this.getPpsnByCode(ppsn);
+        }
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
-        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES", "1hWeapon", "2hWeapon"];
-        return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+        
+        // 修改點 2：移除白名單與 filter，直接回傳全部的項目（若無則回傳空陣列）
+        return json?.data?.items || [];
     }
 };
 

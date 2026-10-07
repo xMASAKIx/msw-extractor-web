@@ -102,7 +102,6 @@ const NexonAPI = {
         return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
 
     }
-    }
 };
 
 window.NexonAPI = NexonAPI;

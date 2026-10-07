@@ -94,7 +94,7 @@ const NexonAPI = {
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
-        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES"];
+        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES", "1H Weapon", "2H Weapon"];
         return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
     }
 };

@@ -97,9 +97,11 @@ const NexonAPI = {
 
         const url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/inventory/avatars/manage/equip/list/${ppsn}`;
         const json = await this.proxyFetch(url);
-        
-        // 修改點 2：移除白名單與 filter，直接回傳全部的項目（若無則回傳空陣列）
-        return json?.data?.items || [];
+
+        const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES", "ONEHANDED_WEAPON", "TWOHANDED_WEAPON"];
+        return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
+
+    }
     }
 };
 

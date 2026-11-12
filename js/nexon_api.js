@@ -16,9 +16,6 @@ const NexonAPI = {
         };
     },
 
-    // ... 後續的 proxyFetch、getRealProductDetail 等保持不變 ...
-};
-
     async proxyFetch(url, isProfile = false) {
         let finalUrl = url;
         if (!isProfile) {
@@ -42,9 +39,7 @@ const NexonAPI = {
         }
     },
 
-// ... 前面的 getHeaders, proxyFetch 保持不變 ...
-
-    // 新增：透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
+    // 透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
     async getProfileDetail(ppsn) {
         if (!ppsn || ppsn === "N/A") return null;
         const url = `https://mverse-api.nexon.com/social/v1/profile/${ppsn}`;
@@ -98,7 +93,7 @@ const NexonAPI = {
 
     async getEquipList(input) {
         let ppsn = input.trim();
-        // 修改點 1：長度為 5 或 6 時都進行轉換
+        // 長度為 5 或 6 時都進行轉換
         if (ppsn.length === 5 || ppsn.length === 6) {
             ppsn = await this.getPpsnByCode(ppsn);
         }
@@ -108,7 +103,6 @@ const NexonAPI = {
 
         const whitelist = ["HAIR", "HAT", "CAPE", "TOP", "GLOVE", "OVERALL", "BOTTOM", "SHOES", "ONEHANDED_WEAPON", "TWOHANDED_WEAPON"];
         return (json?.data?.items || []).filter(item => whitelist.includes(item.avatarType));
-
     }
 };
 

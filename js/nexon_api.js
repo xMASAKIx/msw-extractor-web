@@ -3,7 +3,6 @@ const NexonAPI = {
         const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
         const currentAccount = accounts[0] || {};
         
-        // ★ 同時相容多種命名方式，避免抓到 undefined
         const token = currentAccount.token || currentAccount.access_token || '';
         const userId = currentAccount.userId || currentAccount.user_id || '';
 
@@ -23,7 +22,6 @@ const NexonAPI = {
             finalUrl = url + `${separator}_t=${Date.now()}`;
         }
         
-        // 將目標網址包裝後送到你本機的代理伺服器
         const proxyUrl = `http://localhost:3000/?url=${encodeURIComponent(finalUrl)}`;
 
         try {
@@ -39,11 +37,10 @@ const NexonAPI = {
         }
     },
 
-    // 透過 PPSN 獲取詳細個人資料（含 5 碼 ID）
     async getProfileDetail(ppsn) {
         if (!ppsn || ppsn === "N/A") return null;
         const url = `https://mverse-api.nexon.com/social/v1/profile/${ppsn}`;
-        const res = await this.proxyFetch(url, true); // 使用 Profile 模式請求
+        const res = await this.proxyFetch(url, true);
         return res?.data || null;
     },
 
@@ -54,13 +51,11 @@ const NexonAPI = {
         if (isId) {
             url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/${input}`;
         } else {
-            // 搜尋時加入亂數標籤，強制 Nexon 伺服器回傳最新結果
             url = `https://mod-gateway-prd-tokyo-2.nexon.com/mverse/v1/shop/mod/sale/avatars/search?sort=1&filterType=ALL&registeredType=CREATOR&size=1&searchAvatarName=${encodeURIComponent(input)}&_cb=${Date.now()}`;
         }
 
         try {
             const res = await this.proxyFetch(url);
-            // 這裡要相容不同的資料結構
             const d = isId ? res?.data : (res?.data?.items?.[0] || res?.list?.[0] || res?.data?.[0]);
 
             if (d) {
@@ -80,7 +75,6 @@ const NexonAPI = {
         } catch (e) { 
             console.error("獲取商品詳情失敗", e); 
         }
-        // 如果商城完全搜不到，至少回傳一個帶有 ID 的基本物件，避免畫面壞掉
         return { price: "未上架", sellerPpsn: "", nickname: "未知", profileCode: "", itemId: input };
     },
 
@@ -93,7 +87,6 @@ const NexonAPI = {
 
     async getEquipList(input) {
         let ppsn = input.trim();
-        // 長度為 5 或 6 時都進行轉換
         if (ppsn.length === 5 || ppsn.length === 6) {
             ppsn = await this.getPpsnByCode(ppsn);
         }

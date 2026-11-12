@@ -1,15 +1,23 @@
 const NexonAPI = {
     getHeaders: () => {
         const accounts = JSON.parse(localStorage.getItem('msw_accounts_v1') || '[]');
-        const currentAccount = accounts[0] || { userId: '', token: '' };
+        const currentAccount = accounts[0] || {};
+        
+        // ★ 同時相容多種命名方式，避免抓到 undefined
+        const token = currentAccount.token || currentAccount.access_token || '';
+        const userId = currentAccount.userId || currentAccount.user_id || '';
+
         return {
-            "mod-accesstoken": currentAccount.token,
-            "mod-user-id": currentAccount.userId,
+            "mod-accesstoken": token,
+            "mod-user-id": userId,
             "x-mod-client": "727d112f1370415e85686530ec048fb7",
             "Accept": "application/json",
             "Content-Type": "application/json"
         };
     },
+
+    // ... 後續的 proxyFetch、getRealProductDetail 等保持不變 ...
+};
 
     async proxyFetch(url, isProfile = false) {
         let finalUrl = url;
